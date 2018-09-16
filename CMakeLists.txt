@@ -22,5 +22,6 @@ macro(add_lib_batch lib_name linkage)
 	install(TARGETS ${lib_name} DESTINATION lib)
 endmacro()
 
+add_subdirectory(app)
 add_subdirectory(proto)
 add_subdirectory(crypto)
