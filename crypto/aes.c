@@ -16,10 +16,12 @@ ssize_t _crypto_evp_cipher(const EVP_CIPHER *evp,
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     int len1, len2;
 
+    // printf("%d\n", EVP_CIPHER_block_size(evp));
+
 #define CLEAR_EXIT(code) \
     do { \
         int _c = (code); \
-        if (_c) { \
+        if (_c == -1) { \
             ERR_print_errors_fp(stderr); \
         } \
         EVP_CIPHER_CTX_free(ctx); \
@@ -35,17 +37,20 @@ ssize_t _crypto_evp_cipher(const EVP_CIPHER *evp,
 #undef CLEAR_EXIT
 }
 
-byte_t *crypto_aes_128_cfb_enc(const byte_t *key, const byte_t *iv,
-                               const byte_t *data, size_t data_size,
-                               size_t *out_size_p)
+byte_t *_crypto_aes(const EVP_CIPHER *type,
+                    const byte_t *key, const byte_t *iv,
+                    const byte_t *data, size_t data_size,
+                    size_t *out_size_p, int enc)
 {
-    const EVP_CIPHER *type = EVP_aes_128_cfb();
-    size_t out_size = data_size + (16 - (data_size % 16));
+    size_t out_size = data_size + EVP_CIPHER_block_size(type);
     byte_t *ret = malloc(out_size);
 
     ASSERT(ret, "malloc failed");
 
-    out_size = _crypto_evp_cipher(type, key, iv, data, data_size, ret, 1);
+    out_size = _crypto_evp_cipher(type, key, iv, data, data_size, ret, enc);
+
+    if (out_size == -1) return NULL;
+
     ret = realloc(ret, out_size);
 
     if (out_size_p)
@@ -53,3 +58,21 @@ byte_t *crypto_aes_128_cfb_enc(const byte_t *key, const byte_t *iv,
 
     return ret;
 }
+
+#define GEN_AES(mode) \
+    byte_t *crypto_aes_128_##mode##_enc(const byte_t *key, const byte_t *iv, \
+                                        const byte_t *data, size_t data_size, \
+                                        size_t *out_size_p) \
+    { \
+        return _crypto_aes(EVP_aes_128_##mode(), key, iv, data, data_size, out_size_p, 1); \
+    } \
+    \
+    byte_t *crypto_aes_128_##mode##_dec(const byte_t *key, const byte_t *iv, \
+                                        const byte_t *ctext, size_t ctext_size, \
+                                        size_t *out_size_p) \
+    { \
+        return _crypto_aes(EVP_aes_128_##mode(), key, iv, ctext, ctext_size, out_size_p, 0); \
+    }
+
+GEN_AES(cfb)
+// GEN_AES(gcm)

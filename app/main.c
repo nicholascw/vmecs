@@ -26,15 +26,18 @@ int main()
 {
     hash128_t hash;
 
-    byte_t key[] = "012345678901232";
-    byte_t iv[] = "012345692222222";
+    byte_t key[16] = {0};
+    byte_t iv[16] = {0};
     size_t out_size;
 
-    byte_t *res = crypto_aes_128_cfb_enc(key, iv, "hi", 2, &out_size);
+    byte_t *ctext = crypto_aes_128_cfb_enc(key, iv, "hi", 2, &out_size);
+    print_hex(ctext, out_size);
 
-    printf("%ld\n", out_size);
-    print_hex(res, 2);
-    free(res);
+    byte_t *ptext = crypto_aes_128_cfb_dec(key, iv, ctext, out_size, &out_size);
+    print_hex(ptext, out_size);
+
+    free(ptext);
+    free(ctext);
 
     // crypto_md5("hi", 2, hash);
     crypto_shake128("hi", 2, hash);

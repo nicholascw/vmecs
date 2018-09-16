@@ -3,9 +3,16 @@
 
 #include "pub/type.h"
 
-// this function allocates the memory needed for encrypted text
-byte_t *crypto_aes_128_cfb_enc(const byte_t *key, const byte_t *iv,
-                               const byte_t *data, size_t data_size,
-                               size_t *out_size_p);
+#define GEN_AES_SIG(mode) \
+    byte_t *crypto_aes_128_##mode##_enc(const byte_t *key, const byte_t *iv, \
+                                        const byte_t *data, size_t data_size, \
+                                        size_t *out_size_p); \
+    byte_t *crypto_aes_128_##mode##_dec(const byte_t *key, const byte_t *iv, \
+                                        const byte_t *ctext, size_t ctext_size, \
+                                        size_t *out_size_p);
+
+GEN_AES_SIG(cfb)
+
+#undef GEN_AES_SIG
 
 #endif
