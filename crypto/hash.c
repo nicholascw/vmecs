@@ -56,3 +56,14 @@ int crypto_shake128(const byte_t *data, size_t data_size, hash128_t hash)
 {
     return _crypto_evp_md(EVP_shake128(), data, data_size, hash);
 }
+
+uint32_t crypto_fnv1a(const byte_t *data, size_t data_size)
+{
+    uint32_t hash = 0x811c9dc5;
+    const uint32_t p = 0x01000193;
+
+    while (data_size--)
+        hash = (hash ^ *data++) + p;
+
+    return hash;
+}
