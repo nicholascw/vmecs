@@ -56,8 +56,27 @@ typedef struct {
     byte_t opt;
 } vmess_request_t;
 
-byte_t *vmess_encode_request(vmess_config_t *config,
-                             vmess_state_t *state,
-                             vmess_request_t *req);
+typedef struct {
+    hash128_t key, iv;
+
+    size_t header_size;
+    byte_t *header;
+
+    size_t data_len;
+    byte_t *data;
+} vmess_encoded_msg_t;
+
+vmess_encoded_msg_t *
+vmess_encode_request(vmess_config_t *config,
+                     vmess_state_t *state,
+                     vmess_request_t *req);
+
+// read and encode a single trunk from the remaining data
+// return NULL if there is no more data to encode
+byte_t *vmess_encode_trunk(vmess_request_t *req,
+                           vmess_encoded_msg_t *msg);
+
+void vmess_destroy_msg(vmess_encoded_msg_t *msg);
+void vmess_destroy_request(vmess_request_t *req);
 
 #endif
