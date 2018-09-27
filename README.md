@@ -6,6 +6,8 @@ which is designed by [V2Ray](https://v2ray.com) project (a.k.a Project V).
 The original project is licensed in MIT License, with original repository hosted
  on [GitHub](https://github.com/v2ray/v2ray-core).
 
+**VMecs** is licensed in GPLv3.
+
 Usage
 ---
 `vmecs [CONFIG]`
