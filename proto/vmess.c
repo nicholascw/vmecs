@@ -5,6 +5,7 @@
 #include "pub/err.h"
 #include "pub/type.h"
 #include "pub/random.h"
+#include "pub/serial.h"
 
 #include "crypto/aes.h"
 #include "crypto/hash.h"
@@ -90,45 +91,20 @@ vmess_conn_init(vmess_connection_t *conn,
 {
     hash128_t valid_code;
     uint64_t gen_time = be64(time(NULL));
-    size_t header_size;
-    size_t addr_size;
+    size_t cmd_size;
     size_t out_size;
-    byte_t *ret, *header, *header_it, *enc_header;
-    int i, p = random_in(0, config->p_max), tmp;
+    byte_t *cmd, *enc_cmd;
 
-    switch (req->target->addr_type) {
-        case ADDR_TYPE_IPV4: addr_size = 4; break;
-        case ADDR_TYPE_DOMAIN: addr_size = 1 + req->target->domain_len; break;
-        case ADDR_TYPE_IPV6: addr_size = 8; break;
-        default: ASSERT(0, "invalid address type");
-    }
+    uint32_t checksum;
+
+    serial_t ser;
+
+    int i, p = random_in(0, config->p_max), tmp;
     
     // TODO: add option M support
     ASSERT(req->opt == 1, "unsupported option");
 
-    header_size =
-        1 + // version
-        16 + // iv
-        16 + // key
-        1 + // nonce
-        1 + // option
-        1 + // p: 4 + crypt: 4
-        1 + // reserved
-        1 + // cmd
-        2 + // port
-        1 + // addr type
-        addr_size +
-        p +
-        4; // checksum
-
-    ret = malloc(sizeof(valid_code) + header_size);
-    ASSERT(ret, "out of mem");
-
-    // set up connection
-    conn->state = VMESS_CONN_INIT;
-    conn->header_size = header_size;
-    conn->header = ret;
-    conn->crypt = req->crypt;
+    serial_init(&ser, NULL, 0, 0);
 
     /******* part 1, validation code *******/
 
@@ -138,71 +114,66 @@ vmess_conn_init(vmess_connection_t *conn,
                           valid_code);
     ASSERT(!tmp, "hmac md5 failed");
 
-    memcpy(ret, valid_code, sizeof(valid_code));
+    serial_write(&ser, valid_code, sizeof(valid_code));
 
     /******* part 2, header *******/
-    header_it = header = ret + sizeof(valid_code);
-
     // version byte
-    *header_it++ = req->vers;
+
+    serial_write_u8(&ser, req->vers);
 
     // gen iv and key
     _vmess_gen_key(config, conn->key);
     _vmess_gen_iv(config, gen_time, conn->iv);
 
-    memcpy(header_it, conn->iv, sizeof(conn->iv));
-    memcpy(header_it + sizeof(conn->iv), conn->key, sizeof(conn->key));
-    header_it += sizeof(conn->iv) + sizeof(conn->key);
+    serial_write(&ser, conn->iv, sizeof(conn->iv));
+    serial_write(&ser, conn->key, sizeof(conn->key));
 
-    // nonce
-    *header_it++ = req->nonce = state->nonce++; // inc and set nonce
-    *header_it++ = req->opt;
-    *header_it++ = p << 4 | req->crypt;
-    *header_it++ = 0; // reserved
-    *header_it++ = req->cmd;
+    req->nonce = state->nonce++;
+    serial_write_u8(&ser, req->nonce); // inc and set nonce
+    serial_write_u8(&ser, req->opt);
+    serial_write_u8(&ser, p << 4 | req->crypt);
+    serial_write_u8(&ser, 0); // reserved
+    serial_write_u8(&ser, req->cmd);
 
-    // port
-    *((uint16_t *)header_it) = be16(req->target->port);
-    header_it += 2;
-
-    *header_it++ = req->target->addr_type;
+    serial_write_u16(&ser, be16(req->target->port));
+    serial_write_u8(&ser, req->target->addr_type);
 
     switch (req->target->addr_type) {
         case ADDR_TYPE_IPV4:
-            memcpy(header_it, &req->target->addr.ipv4, sizeof(req->target->addr.ipv4));
-            header_it += 4;
+            serial_write(&ser, &req->target->addr.ipv4, 4);
             break;
 
         case ADDR_TYPE_DOMAIN:
-            *header_it++ = req->target->domain_len;
-            memcpy(header_it, req->target->addr.domain, req->target->domain_len);
-            header_it += req->target->domain_len;
+            serial_write_u8(&ser, req->target->domain_len);
+            serial_write(&ser, req->target->addr.domain, req->target->domain_len);
             break;
-
 
         case ADDR_TYPE_IPV6:
-            memcpy(header_it, &req->target->addr.ipv6, sizeof(req->target->addr.ipv6));
-            header_it += sizeof(req->target->addr.ipv6);
+            serial_write(&ser, &req->target->addr.ipv6, 16);
             break;
-
 
         default: ASSERT(0, "invalid address type");
     }
 
     for (i = 0; i < p; i++) {
-        *header_it++ = random_in(0, 0xff);
+        serial_write_u8(&ser, random_in(0, 0xff));
     }
 
-    ASSERT(header_it - header == header_size - 4, "impossible");
-
-    *((uint32_t *)header) = crypto_fnv1a(header, header_size - 4);
+    checksum = crypto_fnv1a(serial_ofs(&ser, sizeof(valid_code)), serial_size(&ser) - sizeof(valid_code));
+    serial_write_u32(&ser, checksum);
 
     // aes-128-cfb encrypt header
-    enc_header = crypto_aes_128_cfb_enc(conn->key, conn->iv, header, header_size, &out_size);
-    ASSERT(out_size == header_size, "wrong padding");
+    cmd = serial_ofs(&ser, sizeof(valid_code));
+    cmd_size = serial_size(&ser) - sizeof(valid_code);
+    enc_cmd = crypto_aes_128_cfb_enc(conn->key, conn->iv, cmd, cmd_size, &out_size);
+    memcpy(cmd, enc_cmd, cmd_size);
+    free(enc_cmd);
 
-    memcpy(header, enc_header, header_size);
-    free(enc_header);
+    // set up connection
+    conn->state = VMESS_CONN_INIT;
+    conn->header_size = serial_size(&ser);
+    conn->header = serial_final(&ser);
+    conn->crypt = req->crypt;
 }
 
 // generate a data chunk from buffer

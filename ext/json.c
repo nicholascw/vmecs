@@ -1,6 +1,4 @@
-#include <mhash.h>
 #include "json.h"
-
 
 int main(int argc, char *argv[]) {
     if (argc < 3) print_usage(argv[0]);
