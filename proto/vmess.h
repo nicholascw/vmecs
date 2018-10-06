@@ -2,8 +2,18 @@
 #define _PROTO_VMESS_H_
 
 #include "crypto/hash.h"
+#include "pub/type.h"
 
 #include "common.h"
+
+#define VMESS_MAGIC_NO ((hash128_t) { \
+        0xc4, 0x86, 0x19, 0xfe, \
+        0x8f, 0x02, 0x49, 0xe0, \
+        0xb9, 0xe9, 0xed, 0xf7, \
+        0x63, 0xe1, 0x7e, 0x21  \
+    })
+
+#define VMESS_P_MAX 16
 
 typedef struct {
     hash128_t user_id;
@@ -12,7 +22,7 @@ typedef struct {
 } vmess_config_t;
 
 typedef struct {
-    int dumb;
+    byte_t nonce;
 } vmess_state_t;
 
 enum {
@@ -23,60 +33,100 @@ enum {
 };
 
 enum {
-    VMESS_ADDR_TYPE_IPV4 = 1,
-    VMESS_ADDR_TYPE_DOMAIN = 2,
-    VMESS_ADDR_TYPE_IPV6 = 3
+    VMESS_REQ_CMD_TCP = 1,
+    VMESS_REQ_CMD_UDP = 2
 };
 
+/*
+
+client: create vmess_request_t
+
+vmess_connection_t = vmess_connect(config, state, request)
+
+
+*/
+
 typedef struct {
-    union {
-        uint32_t ipv4;
-        
-        struct {
-            byte_t len;
-            char *val;
-        } domain;
+    target_id_t *target;
 
-        uint32_t ipv6[4];
-    } addr;
+    byte_t vers: 2;         // vmess version
+    byte_t crypt: 4;        // encryption method
+    byte_t cmd: 2;          // UDP/TCP
 
-    size_t data_len;
-    byte_t *data;
-
-    uint32_t checksum;
-
-    uint16_t port;
-
-    byte_t vers: 2;
-    byte_t crypt: 2;
-    byte_t cmd: 2;
-    byte_t addr_type: 2;
-
-    byte_t nonce;
-    byte_t opt;
+    byte_t nonce;           // nonce
+    byte_t opt;             // options
 } vmess_request_t;
 
 typedef struct {
     hash128_t key, iv;
 
+    enum {
+        // VMESS_CONN_VOID = 0, // void connection with no info in it
+        VMESS_CONN_INIT = 0,
+        VMESS_CONN_CLOSED
+    } state;
+
+    // socket_t sock;
+
     size_t header_size;
     byte_t *header;
 
-    size_t data_len;
-    byte_t *data;
-} vmess_encoded_msg_t;
+    // vmess_connection_t is
+    // not in charge of freeing these
+    // two fields
+    size_t buf_len;
+    size_t buf_ofs; // digested length
+    byte_t *buf;
 
-vmess_encoded_msg_t *
-vmess_encode_request(vmess_config_t *config,
-                     vmess_state_t *state,
-                     vmess_request_t *req);
+    byte_t crypt;
+} vmess_connection_t;
 
-// read and encode a single trunk from the remaining data
-// return NULL if there is no more data to encode
-byte_t *vmess_encode_trunk(vmess_request_t *req,
-                           vmess_encoded_msg_t *msg);
+/*
 
-void vmess_destroy_msg(vmess_encoded_msg_t *msg);
-void vmess_destroy_request(vmess_request_t *req);
+    usage:
+
+    config = vmess_config_new();
+    state = vmess_state_new();
+    conn = vmess_conn_new();
+
+    // set up request
+    ...
+
+    vmess_conn_init(conn, config, state, req);
+    vmess_conn_write(conn, data, size);
+
+    while ((trunk = vmess_conn_digest(conn))) {
+        send trunk;
+    }
+
+ */
+
+vmess_config_t *vmess_config_new(hash128_t user_id);
+void vmess_config_free(vmess_config_t *config);
+
+vmess_state_t *vmess_state_new();
+void vmess_state_free(vmess_state_t *state);
+
+vmess_connection_t *vmess_conn_new();
+
+void
+vmess_conn_write(vmess_connection_t *conn,
+                 const byte_t *buf, size_t len);
+
+// generate a init connection using
+// the request provided
+// init may alter the 'nonce' field
+void
+vmess_conn_init(vmess_connection_t *conn,
+                vmess_config_t *config,
+                vmess_state_t *state,
+                vmess_request_t *req);
+
+// generate a data chunk from buffer
+// return NULL if there no data left
+byte_t *vmess_conn_digest(vmess_connection_t *conn,  size_t *size_p);
+
+void vmess_conn_free(vmess_connection_t *conn);
+void vmess_request_free(vmess_request_t *req);
 
 #endif

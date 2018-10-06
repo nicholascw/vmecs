@@ -38,10 +38,55 @@ static void _vmess_gen_iv(vmess_config_t *config, uint64_t time, hash128_t iv)
     }
 }
 
-vmess_encoded_msg_t *
-vmess_encode_request(vmess_config_t *config,
-                     vmess_state_t *state,
-                     vmess_request_t *req)
+vmess_config_t *vmess_config_new(hash128_t user_id)
+{
+    vmess_config_t *ret = malloc(sizeof(*ret));
+
+    memcpy(ret->user_id, user_id, sizeof(ret->user_id));
+    memcpy(ret->magic_no, VMESS_MAGIC_NO, sizeof(ret->magic_no));
+    ret->p_max = VMESS_P_MAX;
+
+    return ret;
+}
+
+void vmess_config_free(vmess_config_t *config)
+{
+    free(config);
+}
+
+vmess_state_t *vmess_state_new()
+{
+    vmess_state_t *ret = malloc(sizeof(*ret));
+    ret->nonce = 0;
+    return ret;
+}
+
+void vmess_state_free(vmess_state_t *state)
+{
+    free(state);
+}
+
+vmess_connection_t *vmess_conn_new()
+{
+    vmess_connection_t *conn = calloc(1, sizeof(*conn));
+    ASSERT(conn, "out of mem");
+    return conn;
+}
+
+void
+vmess_conn_write(vmess_connection_t *conn,
+                 const byte_t *buf, size_t len)
+{
+    conn->buf = realloc(conn->buf, conn->buf_len + len);
+    memcpy(conn->buf + conn->buf_len, buf, len);
+    conn->buf_len += len;
+}
+
+void
+vmess_conn_init(vmess_connection_t *conn,
+                vmess_config_t *config,
+                vmess_state_t *state,
+                vmess_request_t *req)
 {
     hash128_t valid_code;
     uint64_t gen_time = be64(time(NULL));
@@ -51,12 +96,10 @@ vmess_encode_request(vmess_config_t *config,
     byte_t *ret, *header, *header_it, *enc_header;
     int i, p = random_in(0, config->p_max), tmp;
 
-    vmess_encoded_msg_t *msg;
-
-    switch (req->addr_type) {
-        case VMESS_ADDR_TYPE_IPV4: addr_size = 4; break;
-        case VMESS_ADDR_TYPE_DOMAIN: addr_size = 1 + req->addr.domain.len; break;
-        case VMESS_ADDR_TYPE_IPV6: addr_size = 8; break;
+    switch (req->target->addr_type) {
+        case ADDR_TYPE_IPV4: addr_size = 4; break;
+        case ADDR_TYPE_DOMAIN: addr_size = 1 + req->target->domain_len; break;
+        case ADDR_TYPE_IPV6: addr_size = 8; break;
         default: ASSERT(0, "invalid address type");
     }
     
@@ -78,34 +121,14 @@ vmess_encode_request(vmess_config_t *config,
         p +
         4; // checksum
 
-    // // using standard data type
-    // switch (req->crypt) {
-    //     case VMESS_CRYPT_AES_128_CFB:
-    //         // every packet can hold 2^16 - 1 - 4 bytes
-    //         n_packet = (req->data_len + AES_128_CFB_PACKET - 1) / AES_128_CFB_PACKET;
-    //         // 2 bytes for length, 4 bytes for checksum
-    //         data_size = 6 * n_packet + req->data_len;
-    //         break;
-
-    //     case VMESS_CRYPT_NONE:
-    //         // every packet can hold 2^16 - 1 bytes
-    //         n_packet = (req->data_len + NO_ENC_PACKET - 1) / NO_ENC_PACKET;
-    //         // 2 bytes for length
-    //         data_size = 2 * n_packet + req->data_len;
-    //         break;
-
-    //     default: ASSERT(0, "unsupported encryption");
-    // }
-
     ret = malloc(sizeof(valid_code) + header_size);
     ASSERT(ret, "out of mem");
-    
-    msg = malloc(sizeof(msg));
-    ASSERT(msg, "out of mem");
 
-    msg->header = ret;
-    msg->data_len = req->data_len;
-    msg->data = req->data;
+    // set up connection
+    conn->state = VMESS_CONN_INIT;
+    conn->header_size = header_size;
+    conn->header = ret;
+    conn->crypt = req->crypt;
 
     /******* part 1, validation code *******/
 
@@ -124,42 +147,42 @@ vmess_encode_request(vmess_config_t *config,
     *header_it++ = req->vers;
 
     // gen iv and key
-    _vmess_gen_key(config, msg->key);
-    _vmess_gen_iv(config, gen_time, msg->iv);
+    _vmess_gen_key(config, conn->key);
+    _vmess_gen_iv(config, gen_time, conn->iv);
 
-    memcpy(header_it, msg->iv, sizeof(msg->iv));
-    memcpy(header_it + sizeof(msg->iv), msg->key, sizeof(msg->key));
-    header_it += sizeof(msg->iv) + sizeof(msg->key);
+    memcpy(header_it, conn->iv, sizeof(conn->iv));
+    memcpy(header_it + sizeof(conn->iv), conn->key, sizeof(conn->key));
+    header_it += sizeof(conn->iv) + sizeof(conn->key);
 
     // nonce
-    *header_it++ = req->nonce;
+    *header_it++ = req->nonce = state->nonce++; // inc and set nonce
     *header_it++ = req->opt;
     *header_it++ = p << 4 | req->crypt;
     *header_it++ = 0; // reserved
     *header_it++ = req->cmd;
 
     // port
-    *((uint16_t *)header_it) = req->port;
+    *((uint16_t *)header_it) = be16(req->target->port);
     header_it += 2;
 
-    *header_it++ = req->addr_type;
+    *header_it++ = req->target->addr_type;
 
-    switch (req->addr_type) {
-        case VMESS_ADDR_TYPE_IPV4:
-            *((uint32_t *)header_it) = req->addr.ipv4;
+    switch (req->target->addr_type) {
+        case ADDR_TYPE_IPV4:
+            memcpy(header_it, &req->target->addr.ipv4, sizeof(req->target->addr.ipv4));
             header_it += 4;
             break;
 
-        case VMESS_ADDR_TYPE_DOMAIN:
-            *header_it++ = req->addr.domain.len;
-            memcpy(header_it, req->addr.domain.val, req->addr.domain.len);
-            header_it += req->addr.domain.len;
+        case ADDR_TYPE_DOMAIN:
+            *header_it++ = req->target->domain_len;
+            memcpy(header_it, req->target->addr.domain, req->target->domain_len);
+            header_it += req->target->domain_len;
             break;
 
 
-        case VMESS_ADDR_TYPE_IPV6:
-            memcpy(header_it, req->addr.ipv6, sizeof(req->addr.ipv6));
-            header_it += sizeof(req->addr.ipv6);
+        case ADDR_TYPE_IPV6:
+            memcpy(header_it, &req->target->addr.ipv6, sizeof(req->target->addr.ipv6));
+            header_it += sizeof(req->target->addr.ipv6);
             break;
 
 
@@ -175,40 +198,57 @@ vmess_encode_request(vmess_config_t *config,
     *((uint32_t *)header) = crypto_fnv1a(header, header_size - 4);
 
     // aes-128-cfb encrypt header
-    enc_header = crypto_aes_128_cfb_enc(msg->key, msg->iv, header, header_size, &out_size);
+    enc_header = crypto_aes_128_cfb_enc(conn->key, conn->iv, header, header_size, &out_size);
     ASSERT(out_size == header_size, "wrong padding");
 
     memcpy(header, enc_header, header_size);
     free(enc_header);
-
-    return msg;
 }
 
-byte_t *vmess_encode_trunk(vmess_request_t *req,
-                           vmess_encoded_msg_t *msg)
+// generate a data chunk from buffer
+// return NULL if there no data left(and size is not set)
+byte_t *vmess_conn_digest(vmess_connection_t *conn, size_t *size_p)
 {
     size_t trunk_size, out_size;
+    size_t remain_size, total_size;
     byte_t *data, *enc_data;
     byte_t *trunk = NULL;
 
-    if (!msg->data_len) return NULL;
-    
-    switch (req->crypt) {
+    // send and clear header first
+    if (conn->header) {
+        trunk = conn->header;
+        *size_p = conn->header_size;
+
+        conn->header_size = 0;
+        conn->header = NULL;
+        return trunk;
+    }
+
+    if (!conn->buf) return NULL;
+
+    // if (!msg->data_len) {
+    //     trunk = calloc(2, 1); // last package is a empty package
+    //     msg->data_len = -1; // set length to -1 to denote the end of data
+    //     return trunk;
+    // }
+
+    switch (conn->crypt) {
         case VMESS_CRYPT_AES_128_CFB: trunk_size = AES_128_CFB_TRUNK; break;
         case VMESS_CRYPT_NONE: trunk_size = NO_ENC_TRUNK; break;
         default: ASSERT(0, "unsupported encryption");
     }
 
+    remain_size = conn->buf_len - conn->buf_ofs;
+    data = conn->buf + conn->buf_ofs;
+
     // consume at most one trunk of data
-    trunk_size = trunk_size > msg->data_len ? msg->data_len : trunk_size;
-    data = msg->data;
+    trunk_size = trunk_size > remain_size ? remain_size : trunk_size;
 
-    msg->data += trunk_size;
-    msg->data_len -= trunk_size;
-
-    switch (req->crypt) {
+    switch (conn->crypt) {
         case VMESS_CRYPT_AES_128_CFB:
-            trunk = malloc(2 + 4 + trunk_size);
+            total_size = 2 + 4 + trunk_size;
+
+            trunk = malloc(total_size);
             ASSERT(trunk, "out of mem");
 
             *((uint16_t *)trunk) = trunk_size + 4;
@@ -216,13 +256,18 @@ byte_t *vmess_encode_trunk(vmess_request_t *req,
             memcpy(trunk + 6, data, trunk_size);
 
             // encrypt
-            enc_data = crypto_aes_128_cfb_enc(msg->key, msg->iv, trunk + 2, trunk_size + 4, &out_size);
+            enc_data = crypto_aes_128_cfb_enc(conn->key, conn->iv, trunk + 2, trunk_size + 4, &out_size);
             ASSERT(out_size == trunk_size + 4, "wrong padding");
 
             memcpy(trunk + 2, enc_data, trunk_size + 4);
+
+            free(enc_data);
+
             break;
 
         case VMESS_CRYPT_NONE:
+            total_size = 2 + trunk_size;
+
             trunk = malloc(2 + trunk_size);
             ASSERT(trunk, "out of mem");
 
@@ -231,25 +276,33 @@ byte_t *vmess_encode_trunk(vmess_request_t *req,
             break;
     }
 
+    conn->buf_ofs += trunk_size;
+
+    if (conn->buf_ofs == conn->buf_len) {
+        // all data in the buffer digested
+        free(conn->buf);
+        conn->buf_len = conn->buf_ofs = 0;
+        conn->buf = NULL;
+    }
+
+    *size_p = total_size;
+
     return trunk;
 }
 
-void vmess_destroy_msg(vmess_encoded_msg_t *msg)
+void vmess_conn_free(vmess_connection_t *conn)
 {
-    if (msg) {
-        free(msg->header);
-        free(msg);
+    if (conn) {
+        free(conn->header);
+        free(conn->buf);
+        free(conn);
     }
 }
 
-void vmess_destroy_request(vmess_request_t *req)
+void vmess_request_free(vmess_request_t *req)
 {
     if (req) {
-        if (req->addr_type == VMESS_ADDR_TYPE_DOMAIN) {
-            free(req->addr.domain.val);
-        }
-
-        free(req->data);
+        target_id_free(req->target);
         free(req);
     }
 }

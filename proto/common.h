@@ -2,28 +2,29 @@
 #define _PROTO_COMMON_H_
 
 #include "pub/type.h"
+#include "socket.h"
 
-// enum {
-//     RAW_PROTO_TCP,
-//     RAW_PROTO_UDP
-// } raw_proto_t;
+enum {
+    ADDR_TYPE_IPV4 = 1,
+    ADDR_TYPE_DOMAIN = 2,
+    ADDR_TYPE_IPV6 = 3
+};
 
-// enum {
-//     ADDR_TYPE_IPV4,
-//     ADDR_TYPE_IPV6
-// } addr_type_t;
+typedef struct {
+    union {
+        uint8_t ipv4[4];
+        char *domain;
+        uint8_t ipv6[16];
+    } addr;
 
-// typedef struct {
-//     size_t len;
-//     byte_t *data;
-    
-//     raw_proto_t proto;
-//     addr_type_t addr_type;
+    uint16_t port; // stored in local endianness
 
-//     union {
-//         uint32_t ipv4;
-//         uint32_t ipv6[4];
-//     } addr;
-// } raw_packet_t;
+    byte_t addr_type;
+    byte_t domain_len; // used only if addr type == ADDR_TYPE_DOMAIN
+} target_id_t;
+
+target_id_t *target_id_new_ipv4(uint8_t addr[4], uint16_t port);
+
+void target_id_free(target_id_t *target);
 
 #endif
