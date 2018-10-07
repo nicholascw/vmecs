@@ -5,7 +5,7 @@
 #include "crypto/aes.h"
 #include "crypto/hash.h"
 
-#include "proto/vmess.h"
+#include "proto/vmess/vmess.h"
 
 void print_byte(byte_t b)
 {
@@ -99,7 +99,7 @@ void test_vmess()
     size_t size;
     byte_t *trunk;
 
-    vmess_conn_init(conn, config, state, &req);
+    vmess_conn_request(conn, config, state, &req);
     vmess_conn_write(conn, "hello", 5);
 
     while ((trunk = vmess_conn_digest(conn, &size))) {

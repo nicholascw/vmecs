@@ -38,4 +38,11 @@ BE_GEN(64)
 
 #undef B_AT
 
+INLINE uint16_t
+from_be16(uint16_t n)
+{
+    uint8_t *p = (uint8_t *)&n;
+    return ((uint16_t)p[0] << 8) | (uint16_t)p[1];
+}
+
 #endif

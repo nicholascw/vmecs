@@ -10,8 +10,8 @@
 #include "crypto/aes.h"
 #include "crypto/hash.h"
 
+#include "proto/common.h"
 #include "vmess.h"
-#include "common.h"
 
 #define AES_128_CFB_TRUNK (((uint16_t)~0) - 1 - 4) // 2^16 - 1 - 4(checksum)
 #define NO_ENC_TRUNK (((uint16_t)~0) - 1) // 2^16 - 1
@@ -84,10 +84,10 @@ vmess_conn_write(vmess_connection_t *conn,
 }
 
 void
-vmess_conn_init(vmess_connection_t *conn,
-                vmess_config_t *config,
-                vmess_state_t *state,
-                vmess_request_t *req)
+vmess_conn_request(vmess_connection_t *conn,
+                   vmess_config_t *config,
+                   vmess_state_t *state,
+                   vmess_request_t *req)
 {
     hash128_t valid_code;
     uint64_t gen_time = be64(time(NULL));

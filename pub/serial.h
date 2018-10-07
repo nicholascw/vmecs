@@ -32,7 +32,7 @@ void serial_write_u32(serial_t *ser, uint32_t val);
 void serial_write_u64(serial_t *ser, uint64_t val);
 void serial_write(serial_t *ser, const void *data, size_t size);
 
-// return the length of read data
+// return 1 if succeed
 int serial_read(serial_t *ser, void *buf, size_t size);
 
 #endif

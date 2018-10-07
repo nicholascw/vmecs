@@ -96,15 +96,16 @@ void serial_write(serial_t *ser, const void *data, size_t size)
     ser->w_idx += size;
 }
 
-// return the length of read data
 int serial_read(serial_t *ser, void *buf, size_t size)
 {
-    if (ser->r_idx + size > ser->size) return 0;
-
     size_t remain = ser->size - ser->r_idx;
-    size_t read = size > remain ? remain : size;
 
-    memcpy(buf, ser->buf + ser->r_idx, read);
+    if (remain < size) return 0;
 
-    return read;
+    if (buf)
+        memcpy(buf, ser->buf + ser->r_idx, size);
+
+    ser->r_idx += size;
+
+    return 1;
 }

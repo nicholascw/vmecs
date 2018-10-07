@@ -1,10 +1,9 @@
-#ifndef _PROTO_VMESS_H_
-#define _PROTO_VMESS_H_
+#ifndef _PROTO_VMESS_VMESS_H_
+#define _PROTO_VMESS_VMESS_H_
 
 #include "crypto/hash.h"
 #include "pub/type.h"
-
-#include "common.h"
+#include "proto/common.h"
 
 #define VMESS_MAGIC_NO ((hash128_t) { \
         0xc4, 0x86, 0x19, 0xfe, \
@@ -36,15 +35,6 @@ enum {
     VMESS_REQ_CMD_TCP = 1,
     VMESS_REQ_CMD_UDP = 2
 };
-
-/*
-
-client: create vmess_request_t
-
-vmess_connection_t = vmess_connect(config, state, request)
-
-
-*/
 
 typedef struct {
     target_id_t *target;
@@ -117,10 +107,10 @@ vmess_conn_write(vmess_connection_t *conn,
 // the request provided
 // init may alter the 'nonce' field
 void
-vmess_conn_init(vmess_connection_t *conn,
-                vmess_config_t *config,
-                vmess_state_t *state,
-                vmess_request_t *req);
+vmess_conn_request(vmess_connection_t *conn,
+                   vmess_config_t *config,
+                   vmess_state_t *state,
+                   vmess_request_t *req);
 
 // generate a data chunk from buffer
 // return NULL if there no data left
