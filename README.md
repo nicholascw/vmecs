@@ -10,4 +10,15 @@ The original project is licensed in MIT License, with original repository hosted
 
 Usage
 ---
-`vmecs [CONFIG]`
+`$ vmecs CONFIG`
+
+Config File
+---
+Different with [v2ray-core](https://github.com/v2ray/v2ray-core), VMecs's config
+file currently would follow the key-value style for simplicity, shown below:
+```
+inbound.proto=vmess
+inbound.addr=example.org
+inbound.port=1080
+...
+```
