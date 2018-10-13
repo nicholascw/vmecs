@@ -17,8 +17,15 @@ Config File
 Different with [v2ray-core](https://github.com/v2ray/v2ray-core), VMecs's config
 file currently would follow the key-value style for simplicity, shown below:
 ```
+log.path=/var/log/vmecs.log
+
 inbound.proto=vmess
 inbound.addr=example.org
 inbound.port=1080
+i_option.uuid=56290e54-9b64-4ea7-b211-deadbeefcafe
+i_option.method=aes-128-gcm
+
+outbound.proto=freedom
+outbound.addr=0.0.0.0
 ...
 ```
