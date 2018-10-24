@@ -1,4 +1,4 @@
-![vmecs](vmecs.png) VMecs
+VMecs
 ===
 
 VMecs is a proxy implementation written in C, and is based on VMess protocol 
