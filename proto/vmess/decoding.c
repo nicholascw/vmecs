@@ -3,12 +3,12 @@
 #include "pub/serial.h"
 #include "crypto/aes.h"
 
-#include "encoding.h"
+#include "decoding.h"
 #include "vmess.h"
 
 // search for the timestamp the request is generated
 uint64_t
-_vmess_decode_lookup_timestamp(vmess_config_t *config, const hash128_t valid_code)
+_vmess_lookup_timestamp(vmess_config_t *config, const hash128_t valid_code)
 {
     uint64_t cur_time = time(NULL);
     uint64_t delta = config->time_delta;
@@ -28,13 +28,25 @@ _vmess_decode_lookup_timestamp(vmess_config_t *config, const hash128_t valid_cod
     return (uint64_t)-1;
 }
 
+bool // return found or not
+vmess_lookup_auth(vmess_auth_t *auth, vmess_config_t *config,
+                  const hash128_t valid_code)
+{
+    uint64_t gen_time = _vmess_lookup_timestamp(config, valid_code);
+
+    if (gen_time == -1) return false;
+
+    vmess_auth_init(auth, config, gen_time);
+
+    return true;
+}
+
 ssize_t
-vmess_decode_data(vmess_config_t *config, uint64_t gen_time,
+vmess_decode_data(vmess_config_t *config, const vmess_auth_t *auth,
                   const byte_t *data, size_t size,
                   byte_t **result, size_t *res_size)
 {
     serial_t ser;
-    hash128_t key, iv;
 
     uint16_t data_len;
 
@@ -43,9 +55,6 @@ vmess_decode_data(vmess_config_t *config, uint64_t gen_time,
 
     uint32_t checksum_expect, checksum;
     size_t n_read;
-
-    vmess_gen_key(config, key);
-    vmess_gen_iv(config, gen_time, iv);
 
     serial_init(&ser, (byte_t *)data, size, 1);
 
@@ -81,7 +90,7 @@ vmess_decode_data(vmess_config_t *config, uint64_t gen_time,
         return 0;
     }
 
-    data_dec = crypto_aes_128_cfb_dec(key, iv, data_buf, data_len, NULL);
+    data_dec = crypto_aes_128_cfb_dec(auth->key, auth->iv, data_buf, data_len, NULL);
     free(data_buf);
 
     if (!data_dec) return -1;
@@ -108,8 +117,40 @@ vmess_decode_data(vmess_config_t *config, uint64_t gen_time,
     return n_read;
 }
 
+ssize_t
+vmess_decode_response(vmess_config_t *config,
+                      const vmess_auth_t *auth,
+                      vmess_response_t *resp,
+                      const byte_t *data, size_t size)
+{
+    byte_t *header_dec;
+
+    if (size < 4) return 0;
+
+    // TODO: acutall vmess uses MD5 of key and iv
+    header_dec = crypto_aes_128_cfb_dec(auth->key, auth->iv, data, 4, NULL);
+    ASSERT(header_dec, "aes-128-cfb decryption failed");
+
+    if (header_dec[0] != auth->nonce) {
+        // unmatched nonce
+        free(header_dec);
+        return -1;
+    }
+
+    resp->opt = header_dec[1];
+
+    if (header_dec[2] != 0 ||
+        header_dec[3] != 0) {
+        free(header_dec);
+        return -1; // unsupported command
+    }
+    
+    return 4;
+}
+
 ssize_t // number of decoded bytes
-vmess_decode_request(vmess_config_t *config, vmess_request_t *req,
+vmess_decode_request(vmess_config_t *config,
+                     vmess_auth_t *auth, vmess_request_t *req,
                      const byte_t *data, size_t size)
 {
     serial_t ser;
@@ -130,8 +171,6 @@ vmess_decode_request(vmess_config_t *config, vmess_request_t *req,
     uint8_t ipv4[4];
     uint8_t ipv6[16];
 
-    uint64_t gen_time;
-
     target_id_t *target = NULL;
     char *domain = NULL;
 
@@ -142,7 +181,6 @@ vmess_decode_request(vmess_config_t *config, vmess_request_t *req,
 
     size_t n_read;
 
-    hash128_t key, iv;
     hash128_t key_check, iv_check;
 
 #define CLEARUP() \
@@ -162,16 +200,12 @@ vmess_decode_request(vmess_config_t *config, vmess_request_t *req,
 
     if (!serial_read(&ser, valid_code, sizeof(valid_code))) DECODE_FAIL(0);
 
-    gen_time = _vmess_decode_lookup_timestamp(config, valid_code);
-
-    // wrong validation code
-    if (gen_time == -1) DECODE_FAIL(-1);
-
-    vmess_gen_key(config, key);
-    vmess_gen_iv(config, gen_time, iv);
+    if (!vmess_lookup_auth(auth, config, valid_code)) {
+        DECODE_FAIL(-1);
+    }
 
     cmd_buf = serial_ofs(&ser, sizeof(valid_code));
-    cmd_buf = crypto_aes_128_cfb_dec(key, iv, cmd_buf, serial_size(&ser) - sizeof(valid_code), NULL);
+    cmd_buf = crypto_aes_128_cfb_dec(auth->key, auth->iv, cmd_buf, serial_size(&ser) - sizeof(valid_code), NULL);
     
     if (!cmd_buf) DECODE_FAIL(0);
 
@@ -243,12 +277,12 @@ vmess_decode_request(vmess_config_t *config, vmess_request_t *req,
     // ASSERT(req, "out of mem");
 
     req->target = target;
-    req->gen_time = gen_time;
     req->vers = vers;
     req->crypt = p_sec & 0xf;
     req->cmd = cmd;
-    req->nonce = nonce;
     req->opt = opt;
+
+    vmess_auth_set_nonce(auth, nonce);
 
     return n_read;
 }

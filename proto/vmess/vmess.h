@@ -49,32 +49,36 @@ enum {
 typedef struct {
     target_id_t *target;
 
-    uint64_t gen_time;
-
     byte_t vers: 2;         // vmess version
     byte_t crypt: 4;        // encryption method
     byte_t cmd: 2;          // UDP/TCP
 
-    byte_t nonce;           // nonce
     byte_t opt;             // options
 } vmess_request_t;
 
 typedef struct {
-    byte_t *cmd_data;
-
-    byte_t nonce;
     byte_t opt;
-    byte_t cmd;
-    byte_t cmd_length;
+    // byte_t crypt;
+    // byte_t cmd;
+    // byte_t cmd_length;
 } vmess_response_t;
 
+// authorization info
+// unique to each connection
 typedef struct {
     hash128_t key, iv;
+    uint64_t gen_time;
+    byte_t nonce;
+} vmess_auth_t;
+
+// vmess serializer
+typedef struct {
+    vmess_auth_t auth;
 
     size_t header_size;
     byte_t *header;
 
-    // vmess_connection_t is
+    // vmess_serial_t is
     // not in charge of freeing these
     // two fields
     size_t buf_len;
@@ -82,7 +86,7 @@ typedef struct {
     byte_t *buf;
 
     byte_t crypt;
-} vmess_connection_t;
+} vmess_serial_t;
 
 /*
 
@@ -90,15 +94,15 @@ typedef struct {
 
     config = vmess_config_new();
     state = vmess_state_new();
-    conn = vmess_conn_new();
 
-    // set up request
+    // set up request/response
     ...
 
-    vmess_conn_init(conn, config, state, req);
-    vmess_conn_write(conn, data, size);
+    vser = vmess_serial_new(auth);
+    vmess_serial_response/request(...);
+    vmess_serial_write(vser, data, size);
 
-    while ((trunk = vmess_conn_digest(conn))) {
+    while ((trunk = vmess_serial_digest(vser))) {
         send trunk;
     }
 
@@ -108,28 +112,39 @@ vmess_config_t *vmess_config_new(hash128_t user_id);
 void vmess_config_free(vmess_config_t *config);
 
 vmess_state_t *vmess_state_new();
+
+INLINE byte_t
+vmess_state_next_nonce(vmess_state_t *state)
+{
+    return state->nonce++;
+}
+
 void vmess_state_free(vmess_state_t *state);
 
-vmess_connection_t *vmess_conn_new();
+vmess_serial_t *vmess_serial_new(vmess_auth_t *auth);
 
 void
-vmess_conn_write(vmess_connection_t *conn,
-                 const byte_t *buf, size_t len);
+vmess_serial_write(vmess_serial_t *vser,
+                   const byte_t *buf, size_t len);
 
-// generate a init connection using
+// generate a init serializer using
 // the request provided
 // init may alter the 'nonce' field
 void
-vmess_conn_request(vmess_connection_t *conn,
-                   vmess_config_t *config,
-                   vmess_state_t *state,
-                   vmess_request_t *req);
+vmess_serial_request(vmess_serial_t *vser,
+                     vmess_config_t *config,
+                     vmess_request_t *req);
+
+void
+vmess_serial_response(vmess_serial_t *vser,
+                      vmess_config_t *config,
+                      vmess_response_t *resp);
 
 // generate a data chunk from buffer
 // return NULL if there no data left
-byte_t *vmess_conn_digest(vmess_connection_t *conn, size_t *size_p);
+byte_t *vmess_serial_digest(vmess_serial_t *vser, size_t *size_p);
 
-void vmess_conn_free(vmess_connection_t *conn);
+void vmess_serial_free(vmess_serial_t *vser);
 void vmess_request_free(vmess_request_t *req);
 
 void
@@ -137,5 +152,26 @@ vmess_gen_validation_code(const hash128_t user_id, uint64_t timestamp, hash128_t
 
 void vmess_gen_key(vmess_config_t *config, hash128_t key);
 void vmess_gen_iv(vmess_config_t *config, uint64_t time, hash128_t iv);
+
+INLINE void
+vmess_auth_init(vmess_auth_t *auth, vmess_config_t *config, uint64_t gen_time)
+{
+    vmess_gen_key(config, auth->key);
+    vmess_gen_iv(config, gen_time, auth->iv);
+    auth->gen_time = gen_time;
+    auth->nonce = 0;
+}
+
+INLINE void
+vmess_auth_set_nonce(vmess_auth_t *auth, byte_t nonce)
+{
+    auth->nonce = nonce;
+}
+
+INLINE void
+vmess_auth_copy(vmess_auth_t *dst, vmess_auth_t *src)
+{
+    memcpy(dst, src, sizeof(*dst));
+}
 
 #endif

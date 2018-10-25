@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <time.h>
 
 #include "pub/err.h"
 
@@ -6,7 +7,7 @@
 #include "crypto/hash.h"
 
 #include "proto/vmess/vmess.h"
-#include "proto/vmess/encoding.h"
+#include "proto/vmess/decoding.h"
 
 void print_byte(byte_t b)
 {
@@ -85,16 +86,14 @@ void test_vmess()
     hash128_t user_id = {0};
     vmess_config_t *config = vmess_config_new(user_id);
     vmess_state_t *state = vmess_state_new();
-    vmess_connection_t *conn = vmess_conn_new();
+    vmess_serial_t *vser;
     target_id_t *target = target_id_new_ipv4((byte_t[]){ 127, 0, 0, 1 }, 3151);
 
     vmess_request_t req = {
         .target = target,
-        .gen_time = time(NULL),
         .vers = 1,
         .crypt = VMESS_CRYPT_AES_128_CFB,
         .cmd = VMESS_REQ_CMD_TCP,
-        .nonce = 0,
         .opt = 1
     };
 
@@ -106,28 +105,36 @@ void test_vmess()
     size_t buf_size;
 
     vmess_request_t req_read;
+    vmess_auth_t auth;
+    
+    vmess_auth_init(&auth, config, time(NULL));
 
-    vmess_conn_request(conn, config, state, &req);
-    vmess_conn_write(conn, "hello", 5);
+    vser = vmess_serial_new(&auth);
+
+    vmess_serial_request(vser, config, &req);
+    vmess_serial_write(vser, (byte_t *)"hello", 5);
 
     ////////////// decode/encode header
 
-    header = vmess_conn_digest(conn, &size);
+    header = vmess_serial_digest(vser, &size);
     hexdump("header", header, size);
-    size = vmess_decode_request(config, &req_read, header, size);
+    size = vmess_decode_request(config, &auth, &req_read, header, size);
     printf("read: %lu\n", size);
     free(header);
 
     ////////////// decode/encode data
-    trunk = vmess_conn_digest(conn, &size);
+    trunk = vmess_serial_digest(vser, &size);
     hexdump("trunk", trunk, size);
-    size = vmess_decode_data(config, req_read.gen_time, trunk, size, &buf, &buf_size);
+    size = vmess_decode_data(config, &auth, trunk, size, &buf, &buf_size);
     printf("read: %lu, data size: %lu\n", size, buf_size);
     hexdump("data", buf, buf_size);
     free(buf);
     free(trunk);
 
-    vmess_conn_free(conn);
+    ////////////// decode/encode response
+
+
+    vmess_serial_free(vser);
     target_id_free(target);
 
     vmess_config_free(config);
@@ -140,10 +147,9 @@ void test_crypto()
 
     byte_t key[16] = {0};
     byte_t iv[16] = {0};
-    byte_t iv2[16] = {1};
     size_t out_size;
 
-    byte_t *ctext = crypto_aes_128_cfb_enc(key, iv, "hi", 2, &out_size);
+    byte_t *ctext = crypto_aes_128_cfb_enc(key, iv, (byte_t *)"hi", 2, &out_size);
     print_hex(ctext, out_size);
 
     byte_t *ptext = crypto_aes_128_cfb_dec(key, iv, ctext, out_size, &out_size);
@@ -153,7 +159,7 @@ void test_crypto()
     free(ctext);
 
     // crypto_md5("hi", 2, hash);
-    crypto_shake128("hi", 2, hash);
+    crypto_shake128((byte_t *)"hi", 2, hash);
 
     print_hash128(hash);
 }

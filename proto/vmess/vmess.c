@@ -68,20 +68,23 @@ void vmess_state_free(vmess_state_t *state)
     free(state);
 }
 
-vmess_connection_t *vmess_conn_new()
+vmess_serial_t *vmess_serial_new(vmess_auth_t *auth)
 {
-    vmess_connection_t *conn = calloc(1, sizeof(*conn));
-    ASSERT(conn, "out of mem");
-    return conn;
+    vmess_serial_t *vser = calloc(1, sizeof(*vser));
+    ASSERT(vser, "out of mem");
+
+    vmess_auth_copy(&vser->auth, auth);
+
+    return vser;
 }
 
 void
-vmess_conn_write(vmess_connection_t *conn,
-                 const byte_t *buf, size_t len)
+vmess_serial_write(vmess_serial_t *vser,
+                   const byte_t *buf, size_t len)
 {
-    conn->buf = realloc(conn->buf, conn->buf_len + len);
-    memcpy(conn->buf + conn->buf_len, buf, len);
-    conn->buf_len += len;
+    vser->buf = realloc(vser->buf, vser->buf_len + len);
+    memcpy(vser->buf + vser->buf_len, buf, len);
+    vser->buf_len += len;
 }
 
 void
@@ -94,102 +97,9 @@ vmess_gen_validation_code(const hash128_t user_id, uint64_t timestamp, hash128_t
                            out) == 0, "hmac md5 failed");
 }
 
-void
-vmess_conn_request(vmess_connection_t *conn,
-                   vmess_config_t *config,
-                   vmess_state_t *state,
-                   vmess_request_t *req)
-{
-    hash128_t valid_code;
-    uint64_t gen_time = req->gen_time;
-    size_t cmd_size;
-    size_t out_size;
-    byte_t *cmd, *enc_cmd;
-
-    uint32_t checksum;
-
-    serial_t ser;
-
-    int i, p = random_in(0, config->p_max);
-    
-    // TODO: add option M support
-    ASSERT(req->opt == 1, "unsupported option");
-
-    serial_init(&ser, NULL, 0, 0);
-
-    /******* part 1, validation code *******/
-
-    // gen validation code
-    vmess_gen_validation_code(config->user_id, gen_time, valid_code);
-
-    serial_write(&ser, valid_code, sizeof(valid_code));
-
-    /******* part 2, header *******/
-    // version byte
-
-    serial_write_u8(&ser, req->vers);
-
-    // gen iv and key
-    vmess_gen_key(config, conn->key);
-    vmess_gen_iv(config, gen_time, conn->iv);
-
-    serial_write(&ser, conn->iv, sizeof(conn->iv));
-    serial_write(&ser, conn->key, sizeof(conn->key));
-
-    req->nonce = state->nonce++;
-    serial_write_u8(&ser, req->nonce); // inc and set nonce
-    serial_write_u8(&ser, req->opt);
-    serial_write_u8(&ser, p << 4 | req->crypt);
-    serial_write_u8(&ser, 0); // reserved
-    serial_write_u8(&ser, req->cmd);
-
-    serial_write_u16(&ser, be16(req->target->port));
-    serial_write_u8(&ser, req->target->addr_type);
-
-    switch (req->target->addr_type) {
-        case ADDR_TYPE_IPV4:
-            serial_write(&ser, &req->target->addr.ipv4, 4);
-            break;
-
-        case ADDR_TYPE_DOMAIN:
-            serial_write_u8(&ser, req->target->domain_len);
-            serial_write(&ser, req->target->addr.domain, req->target->domain_len);
-            break;
-
-        case ADDR_TYPE_IPV6:
-            serial_write(&ser, &req->target->addr.ipv6, 16);
-            break;
-
-        default: ASSERT(0, "invalid address type");
-    }
-
-    for (i = 0; i < p; i++) {
-        serial_write_u8(&ser, random_in(0, 0xff));
-    }
-
-    checksum = be32(crypto_fnv1a(serial_ofs(&ser, sizeof(valid_code)), serial_size(&ser) - sizeof(valid_code)));
-    serial_write_u32(&ser, checksum);
-
-    // aes-128-cfb encrypt header
-    cmd = serial_ofs(&ser, sizeof(valid_code));
-    cmd_size = serial_size(&ser) - sizeof(valid_code);
-
-    // hexdump("not encoded", cmd, cmd_size);
-    // printf("checksum: %d\n", checksum);
-
-    enc_cmd = crypto_aes_128_cfb_enc(conn->key, conn->iv, cmd, cmd_size, &out_size);
-    memcpy(cmd, enc_cmd, cmd_size);
-    free(enc_cmd);
-
-    // set up connection
-    conn->header_size = serial_size(&ser);
-    conn->header = serial_final(&ser);
-    conn->crypt = req->crypt;
-}
-
 // generate a data chunk from buffer
 // return NULL if there no data left(and size is not set)
-byte_t *vmess_conn_digest(vmess_connection_t *conn, size_t *size_p)
+byte_t *vmess_serial_digest(vmess_serial_t *vser, size_t *size_p)
 {
     size_t trunk_size, out_size;
     size_t remain_size, total_size;
@@ -197,16 +107,16 @@ byte_t *vmess_conn_digest(vmess_connection_t *conn, size_t *size_p)
     byte_t *trunk = NULL;
 
     // send and clear header first
-    if (conn->header) {
-        trunk = conn->header;
-        *size_p = conn->header_size;
+    if (vser->header) {
+        trunk = vser->header;
+        *size_p = vser->header_size;
 
-        conn->header_size = 0;
-        conn->header = NULL;
+        vser->header_size = 0;
+        vser->header = NULL;
         return trunk;
     }
 
-    if (!conn->buf) return NULL;
+    if (!vser->buf) return NULL;
 
     // if (!msg->data_len) {
     //     trunk = calloc(2, 1); // last package is a empty package
@@ -214,19 +124,19 @@ byte_t *vmess_conn_digest(vmess_connection_t *conn, size_t *size_p)
     //     return trunk;
     // }
 
-    switch (conn->crypt) {
+    switch (vser->crypt) {
         case VMESS_CRYPT_AES_128_CFB: trunk_size = AES_128_CFB_TRUNK; break;
         case VMESS_CRYPT_NONE: trunk_size = NO_ENC_TRUNK; break;
         default: ASSERT(0, "unsupported encryption");
     }
 
-    remain_size = conn->buf_len - conn->buf_ofs;
-    data = conn->buf + conn->buf_ofs;
+    remain_size = vser->buf_len - vser->buf_ofs;
+    data = vser->buf + vser->buf_ofs;
 
     // consume at most one trunk of data
     trunk_size = trunk_size > remain_size ? remain_size : trunk_size;
 
-    switch (conn->crypt) {
+    switch (vser->crypt) {
         case VMESS_CRYPT_AES_128_CFB:
             total_size = 2 + 4 + trunk_size;
 
@@ -238,7 +148,7 @@ byte_t *vmess_conn_digest(vmess_connection_t *conn, size_t *size_p)
             memcpy(trunk + 6, data, trunk_size);
 
             // encrypt
-            enc_data = crypto_aes_128_cfb_enc(conn->key, conn->iv, trunk + 2, trunk_size + 4, &out_size);
+            enc_data = crypto_aes_128_cfb_enc(vser->auth.key, vser->auth.iv, trunk + 2, trunk_size + 4, &out_size);
             ASSERT(out_size == trunk_size + 4, "wrong padding");
 
             memcpy(trunk + 2, enc_data, trunk_size + 4);
@@ -258,13 +168,13 @@ byte_t *vmess_conn_digest(vmess_connection_t *conn, size_t *size_p)
             break;
     }
 
-    conn->buf_ofs += trunk_size;
+    vser->buf_ofs += trunk_size;
 
-    if (conn->buf_ofs == conn->buf_len) {
+    if (vser->buf_ofs == vser->buf_len) {
         // all data in the buffer digested
-        free(conn->buf);
-        conn->buf_len = conn->buf_ofs = 0;
-        conn->buf = NULL;
+        free(vser->buf);
+        vser->buf_len = vser->buf_ofs = 0;
+        vser->buf = NULL;
     }
 
     *size_p = total_size;
@@ -272,12 +182,12 @@ byte_t *vmess_conn_digest(vmess_connection_t *conn, size_t *size_p)
     return trunk;
 }
 
-void vmess_conn_free(vmess_connection_t *conn)
+void vmess_serial_free(vmess_serial_t *vser)
 {
-    if (conn) {
-        free(conn->header);
-        free(conn->buf);
-        free(conn);
+    if (vser) {
+        free(vser->header);
+        free(vser->buf);
+        free(vser);
     }
 }
 
