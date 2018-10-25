@@ -3,6 +3,9 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
+
+#include "err.h"
 
 typedef uint8_t byte_t;
 typedef signed long ssize_t;
@@ -44,5 +47,14 @@ from_be16(uint16_t n)
     uint8_t *p = (uint8_t *)&n;
     return ((uint16_t)p[0] << 8) | (uint16_t)p[1];
 }
+
+// INLINE char *strdup(const char *str)
+// {
+//     size_t len = strlen(str);
+//     char *ret = malloc(len + 1);
+//     ASSERT(ret, "out of mem");
+//     memcpy(ret, str, len + 1);
+//     return ret;
+// }
 
 #endif

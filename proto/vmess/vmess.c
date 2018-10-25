@@ -16,7 +16,7 @@
 #define AES_128_CFB_TRUNK (((uint16_t)~0) - 1 - 4) // 2^16 - 1 - 4(checksum)
 #define NO_ENC_TRUNK (((uint16_t)~0) - 1) // 2^16 - 1
 
-static void _vmess_gen_key(vmess_config_t *config, hash128_t key)
+void vmess_gen_key(vmess_config_t *config, hash128_t key)
 {
     byte_t tmp_data[sizeof(hash128_t) * 2];
 
@@ -28,11 +28,11 @@ static void _vmess_gen_key(vmess_config_t *config, hash128_t key)
     }
 }
 
-static void _vmess_gen_iv(vmess_config_t *config, uint64_t time, hash128_t iv)
+void vmess_gen_iv(vmess_config_t *config, uint64_t time, hash128_t iv)
 {
     uint64_t tmp_data[4];
 
-    tmp_data[0] = tmp_data[1] = tmp_data[2] = tmp_data[3] = time;
+    tmp_data[0] = tmp_data[1] = tmp_data[2] = tmp_data[3] = be64(time);
 
     if (crypto_md5((byte_t *)tmp_data, sizeof(tmp_data), iv)) {
         ASSERT(0, "md5 failed");
@@ -45,6 +45,7 @@ vmess_config_t *vmess_config_new(hash128_t user_id)
 
     memcpy(ret->user_id, user_id, sizeof(ret->user_id));
     memcpy(ret->magic_no, VMESS_MAGIC_NO, sizeof(ret->magic_no));
+    ret->time_delta = VMESS_TIME_DELTA;
     ret->p_max = VMESS_P_MAX;
 
     return ret;
@@ -84,13 +85,23 @@ vmess_conn_write(vmess_connection_t *conn,
 }
 
 void
+vmess_gen_validation_code(const hash128_t user_id, uint64_t timestamp, hash128_t out)
+{
+    timestamp = be64(timestamp);
+
+    ASSERT(crypto_hmac_md5(user_id, sizeof(hash128_t),
+                           (byte_t *)&timestamp, sizeof(timestamp),
+                           out) == 0, "hmac md5 failed");
+}
+
+void
 vmess_conn_request(vmess_connection_t *conn,
                    vmess_config_t *config,
                    vmess_state_t *state,
                    vmess_request_t *req)
 {
     hash128_t valid_code;
-    uint64_t gen_time = be64(time(NULL));
+    uint64_t gen_time = req->gen_time;
     size_t cmd_size;
     size_t out_size;
     byte_t *cmd, *enc_cmd;
@@ -99,7 +110,7 @@ vmess_conn_request(vmess_connection_t *conn,
 
     serial_t ser;
 
-    int i, p = random_in(0, config->p_max), tmp;
+    int i, p = random_in(0, config->p_max);
     
     // TODO: add option M support
     ASSERT(req->opt == 1, "unsupported option");
@@ -109,10 +120,7 @@ vmess_conn_request(vmess_connection_t *conn,
     /******* part 1, validation code *******/
 
     // gen validation code
-    tmp = crypto_hmac_md5(config->user_id, sizeof(config->user_id),
-                          (byte_t *)&gen_time, sizeof(gen_time),
-                          valid_code);
-    ASSERT(!tmp, "hmac md5 failed");
+    vmess_gen_validation_code(config->user_id, gen_time, valid_code);
 
     serial_write(&ser, valid_code, sizeof(valid_code));
 
@@ -122,8 +130,8 @@ vmess_conn_request(vmess_connection_t *conn,
     serial_write_u8(&ser, req->vers);
 
     // gen iv and key
-    _vmess_gen_key(config, conn->key);
-    _vmess_gen_iv(config, gen_time, conn->iv);
+    vmess_gen_key(config, conn->key);
+    vmess_gen_iv(config, gen_time, conn->iv);
 
     serial_write(&ser, conn->iv, sizeof(conn->iv));
     serial_write(&ser, conn->key, sizeof(conn->key));
@@ -159,18 +167,21 @@ vmess_conn_request(vmess_connection_t *conn,
         serial_write_u8(&ser, random_in(0, 0xff));
     }
 
-    checksum = crypto_fnv1a(serial_ofs(&ser, sizeof(valid_code)), serial_size(&ser) - sizeof(valid_code));
+    checksum = be32(crypto_fnv1a(serial_ofs(&ser, sizeof(valid_code)), serial_size(&ser) - sizeof(valid_code)));
     serial_write_u32(&ser, checksum);
 
     // aes-128-cfb encrypt header
     cmd = serial_ofs(&ser, sizeof(valid_code));
     cmd_size = serial_size(&ser) - sizeof(valid_code);
+
+    // hexdump("not encoded", cmd, cmd_size);
+    // printf("checksum: %d\n", checksum);
+
     enc_cmd = crypto_aes_128_cfb_enc(conn->key, conn->iv, cmd, cmd_size, &out_size);
     memcpy(cmd, enc_cmd, cmd_size);
     free(enc_cmd);
 
     // set up connection
-    conn->state = VMESS_CONN_INIT;
     conn->header_size = serial_size(&ser);
     conn->header = serial_final(&ser);
     conn->crypt = req->crypt;
@@ -222,8 +233,8 @@ byte_t *vmess_conn_digest(vmess_connection_t *conn, size_t *size_p)
             trunk = malloc(total_size);
             ASSERT(trunk, "out of mem");
 
-            *((uint16_t *)trunk) = trunk_size + 4;
-            *((uint32_t *)(trunk + 2)) = crypto_fnv1a(data, trunk_size);
+            *((uint16_t *)trunk) = be16(trunk_size + 4);
+            *((uint32_t *)(trunk + 2)) = be32(crypto_fnv1a(data, trunk_size));
             memcpy(trunk + 6, data, trunk_size);
 
             // encrypt

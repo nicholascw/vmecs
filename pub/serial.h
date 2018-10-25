@@ -35,4 +35,10 @@ void serial_write(serial_t *ser, const void *data, size_t size);
 // return 1 if succeed
 int serial_read(serial_t *ser, void *buf, size_t size);
 
+// get current read index/number of bytes read
+INLINE size_t serial_read_idx(serial_t *ser)
+{
+    return ser->r_idx;
+}
+
 #endif

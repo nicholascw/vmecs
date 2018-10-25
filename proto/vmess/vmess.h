@@ -12,14 +12,19 @@
         0x63, 0xe1, 0x7e, 0x21  \
     })
 
+// cur_time +- 30s
+#define VMESS_TIME_DELTA 30
+
 #define VMESS_P_MAX 16
 
 typedef struct {
     hash128_t user_id;
     hash128_t magic_no;
+    uint64_t time_delta;
     int p_max;
 } vmess_config_t;
 
+// state contains the validation code map
 typedef struct {
     byte_t nonce;
 } vmess_state_t;
@@ -36,8 +41,15 @@ enum {
     VMESS_REQ_CMD_UDP = 2
 };
 
+enum {
+    VMESS_RES_CMD_NONE = 0,
+    VMESS_RES_CMD_DYN_PORT = 1
+};
+
 typedef struct {
     target_id_t *target;
+
+    uint64_t gen_time;
 
     byte_t vers: 2;         // vmess version
     byte_t crypt: 4;        // encryption method
@@ -48,15 +60,16 @@ typedef struct {
 } vmess_request_t;
 
 typedef struct {
+    byte_t *cmd_data;
+
+    byte_t nonce;
+    byte_t opt;
+    byte_t cmd;
+    byte_t cmd_length;
+} vmess_response_t;
+
+typedef struct {
     hash128_t key, iv;
-
-    enum {
-        // VMESS_CONN_VOID = 0, // void connection with no info in it
-        VMESS_CONN_INIT = 0,
-        VMESS_CONN_CLOSED
-    } state;
-
-    // socket_t sock;
 
     size_t header_size;
     byte_t *header;
@@ -114,9 +127,15 @@ vmess_conn_request(vmess_connection_t *conn,
 
 // generate a data chunk from buffer
 // return NULL if there no data left
-byte_t *vmess_conn_digest(vmess_connection_t *conn,  size_t *size_p);
+byte_t *vmess_conn_digest(vmess_connection_t *conn, size_t *size_p);
 
 void vmess_conn_free(vmess_connection_t *conn);
 void vmess_request_free(vmess_request_t *req);
+
+void
+vmess_gen_validation_code(const hash128_t user_id, uint64_t timestamp, hash128_t out);
+
+void vmess_gen_key(vmess_config_t *config, hash128_t key);
+void vmess_gen_iv(vmess_config_t *config, uint64_t time, hash128_t iv);
 
 #endif

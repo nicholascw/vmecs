@@ -13,6 +13,11 @@ enum {
     ADDR_TYPE_IPV6 = 3
 };
 
+typedef enum {
+    PROTO_UDP,
+    PROTO_TCP
+} proto_type_t;
+
 typedef struct {
     union {
         uint8_t ipv4[4];
@@ -32,13 +37,12 @@ target_id_t *target_id_new_domain(const char *domain, uint64_t port);
 
 void target_id_free(target_id_t *target);
 
-INLINE char *strdup(const char *str)
-{
-    size_t len = strlen(str);
-    char *ret = malloc(len + 1);
-    ASSERT(ret, "out of mem");
-    memcpy(ret, str, len + 1);
-    return ret;
-}
+typedef struct {
+    target_id_t *target;
+    proto_type_t type;
+
+    size_t data_len;
+    byte_t *data;
+} packet_t;
 
 #endif

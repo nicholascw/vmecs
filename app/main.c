@@ -6,6 +6,7 @@
 #include "crypto/hash.h"
 
 #include "proto/vmess/vmess.h"
+#include "proto/vmess/encoding.h"
 
 void print_byte(byte_t b)
 {
@@ -89,6 +90,7 @@ void test_vmess()
 
     vmess_request_t req = {
         .target = target,
+        .gen_time = time(NULL),
         .vers = 1,
         .crypt = VMESS_CRYPT_AES_128_CFB,
         .cmd = VMESS_REQ_CMD_TCP,
@@ -99,13 +101,31 @@ void test_vmess()
     size_t size;
     byte_t *trunk;
 
+    byte_t *header;
+    byte_t *buf;
+    size_t buf_size;
+
+    vmess_request_t req_read;
+
     vmess_conn_request(conn, config, state, &req);
     vmess_conn_write(conn, "hello", 5);
 
-    while ((trunk = vmess_conn_digest(conn, &size))) {
-        hexdump("trunk", trunk, size);
-        free(trunk);
-    }
+    ////////////// decode/encode header
+
+    header = vmess_conn_digest(conn, &size);
+    hexdump("header", header, size);
+    size = vmess_decode_request(config, &req_read, header, size);
+    printf("read: %lu\n", size);
+    free(header);
+
+    ////////////// decode/encode data
+    trunk = vmess_conn_digest(conn, &size);
+    hexdump("trunk", trunk, size);
+    size = vmess_decode_data(config, req_read.gen_time, trunk, size, &buf, &buf_size);
+    printf("read: %lu, data size: %lu\n", size, buf_size);
+    hexdump("data", buf, buf_size);
+    free(buf);
+    free(trunk);
 
     vmess_conn_free(conn);
     target_id_free(target);
@@ -138,9 +158,9 @@ void test_crypto()
     print_hash128(hash);
 }
 
-int main()
-{
-    test_crypto();
-    test_vmess();
-    return 0;
-}
+// int main()
+// {
+//     test_crypto();
+//     test_vmess();
+//     return 0;
+// }
