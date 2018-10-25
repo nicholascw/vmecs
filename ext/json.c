@@ -14,14 +14,14 @@ int main(int argc, char *argv[]) {
                 print_usage(argv[0]);
         }
     }
-    if (!h_realpath) _exit(1)
+    if (!h_realpath) __exit(1)
     FILE *config_fp = fopen(h_realpath, "r");
-    if (!config_fp) _exit(1)
+    if (!config_fp) __exit(1)
     char *buf = calloc(512, sizeof(char));
     char *cfg_string = calloc(1, sizeof(char));
     size_t len = 0;
     while (fgets(buf, 512, config_fp)) {
-        if (!buf || !cfg_string) _exit(1)
+        if (!buf || !cfg_string) __exit(1)
         len = strlen(cfg_string) + strlen(buf) + 1;
         cfg_string = realloc(cfg_string, len);
         strcat(cfg_string, buf);
@@ -38,7 +38,7 @@ void print_usage(const char *filename) {
 
 char *get_realpath(char *optarg) {
     char *r = realpath(optarg, NULL);
-    if (!r) _exit(1)
+    if (!r) __exit(1)
     return r;
 }
 

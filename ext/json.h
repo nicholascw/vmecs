@@ -8,7 +8,7 @@
 #include <getopt.h>
 #include <string.h>
 
-#define _exit(X) {perror("__OUTPUT__"); exit(X);}
+#define __exit(X) {perror("__OUTPUT__"); exit(X);}
 
 typedef struct _cfg_entry {
     char *key;
