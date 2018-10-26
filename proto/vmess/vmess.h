@@ -144,6 +144,9 @@ vmess_serial_response(vmess_serial_t *vser,
 // return NULL if there no data left
 byte_t *vmess_serial_digest(vmess_serial_t *vser, size_t *size_p);
 
+// generate the end message
+const byte_t *vmess_serial_end(size_t *size_p);
+
 void vmess_serial_free(vmess_serial_t *vser);
 void vmess_request_free(vmess_request_t *req);
 

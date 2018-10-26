@@ -198,3 +198,10 @@ void vmess_request_free(vmess_request_t *req)
         free(req);
     }
 }
+
+const byte_t *vmess_serial_end(size_t *size_p)
+{
+    static byte_t end[] = { 0, 0 };
+    if (size_p) *size_p = sizeof(end);
+    return end;
+}

@@ -43,8 +43,8 @@ vmess_lookup_auth(vmess_auth_t *auth, vmess_config_t *config,
 
 ssize_t
 vmess_decode_data(vmess_config_t *config, const vmess_auth_t *auth,
-                  const byte_t *data, size_t size,
-                  byte_t **result, size_t *res_size)
+                  data_trunk_t *trunk,
+                  const byte_t *data, size_t size)
 {
     serial_t ser;
 
@@ -65,11 +65,9 @@ vmess_decode_data(vmess_config_t *config, const vmess_auth_t *auth,
 
     data_len = from_be16(data_len);
 
-    printf("data_len: %d\n", data_len);
-
     if (!data_len) {
-        *result = NULL;
-        *res_size = 0;
+        trunk->data = NULL;
+        trunk->size = 0;
         n_read = serial_read_idx(&ser);
         serial_destroy(&ser);
         return n_read;
@@ -104,48 +102,17 @@ vmess_decode_data(vmess_config_t *config, const vmess_auth_t *auth,
         return -1;
     }
 
-    *result = malloc(data_len - 4);
-    ASSERT(*result, "out of mem");
+    trunk->data = malloc(data_len - 4);
+    ASSERT(trunk->data, "out of mem");
 
-    memcpy(*result, data_dec + 4, data_len - 4);
-    *res_size = data_len - 4;
+    memcpy(trunk->data, data_dec + 4, data_len - 4);
+    trunk->size = data_len - 4;
     n_read = serial_read_idx(&ser);
 
     serial_destroy(&ser);
     free(data_dec);
 
     return n_read;
-}
-
-ssize_t
-vmess_decode_response(vmess_config_t *config,
-                      const vmess_auth_t *auth,
-                      vmess_response_t *resp,
-                      const byte_t *data, size_t size)
-{
-    byte_t *header_dec;
-
-    if (size < 4) return 0;
-
-    // TODO: acutall vmess uses MD5 of key and iv
-    header_dec = crypto_aes_128_cfb_dec(auth->key, auth->iv, data, 4, NULL);
-    ASSERT(header_dec, "aes-128-cfb decryption failed");
-
-    if (header_dec[0] != auth->nonce) {
-        // unmatched nonce
-        free(header_dec);
-        return -1;
-    }
-
-    resp->opt = header_dec[1];
-
-    if (header_dec[2] != 0 ||
-        header_dec[3] != 0) {
-        free(header_dec);
-        return -1; // unsupported command
-    }
-    
-    return 4;
 }
 
 ssize_t // number of decoded bytes
@@ -285,4 +252,58 @@ vmess_decode_request(vmess_config_t *config,
     vmess_auth_set_nonce(auth, nonce);
 
     return n_read;
+}
+
+ssize_t
+vmess_decode_response(vmess_config_t *config,
+                      const vmess_auth_t *auth,
+                      vmess_response_t *resp,
+                      const byte_t *data, size_t size)
+{
+    byte_t *header_dec;
+
+    if (size < 4) return 0;
+
+    // TODO: acutall vmess uses MD5 of key and iv
+    header_dec = crypto_aes_128_cfb_dec(auth->key, auth->iv, data, 4, NULL);
+    ASSERT(header_dec, "aes-128-cfb decryption failed");
+
+    if (header_dec[0] != auth->nonce) {
+        // unmatched nonce
+        free(header_dec);
+        return -1;
+    }
+
+    resp->opt = header_dec[1];
+
+    if (header_dec[2] != 0 ||
+        header_dec[3] != 0) {
+        free(header_dec);
+        return -1; // unsupported command
+    }
+
+    free(header_dec);
+    
+    return 4;
+}
+
+ssize_t
+vmess_request_decoder(void *context, void *result, const byte_t *data, size_t size)
+{
+    vmess_decoder_ctx_t *ctx = context;
+    return vmess_decode_request(ctx->config, ctx->auth, result, data, size);
+}
+
+ssize_t
+vmess_response_decoder(void *context, void *result, const byte_t *data, size_t size)
+{
+    vmess_decoder_ctx_t *ctx = context;
+    return vmess_decode_response(ctx->config, ctx->auth, result, data, size);
+}
+
+ssize_t
+vmess_data_decoder(void *context, void *result, const byte_t *data, size_t size)
+{
+    vmess_decoder_ctx_t *ctx = context;
+    return vmess_decode_data(ctx->config, ctx->auth, result, data, size);
 }

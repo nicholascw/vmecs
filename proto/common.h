@@ -45,4 +45,21 @@ typedef struct {
     byte_t *data;
 } packet_t;
 
+typedef struct {
+    byte_t *data;
+    size_t size;
+} data_trunk_t;
+
+INLINE void
+data_trunk_destroy(data_trunk_t *trunk)
+{
+    if (trunk) {
+        free(trunk->data);
+        trunk->data = NULL;
+        trunk->size = 0;
+    }
+}
+
+typedef ssize_t (*decoder_t)(void *context, void *result, const byte_t *dat, size_t dat_size);
+
 #endif

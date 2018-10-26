@@ -26,6 +26,8 @@ vmess_serial_response(vmess_serial_t *vser,
     header[2] = 0; // cmd
     header[3] = 0; // cmd length
 
+    ASSERT(resp->opt == 1, "unsupported response option");
+
     header_enc = crypto_aes_128_cfb_enc(vser->auth.key, vser->auth.iv, header, sizeof(header), NULL);
     ASSERT(header_enc, "aes-128-cfb failed");
 

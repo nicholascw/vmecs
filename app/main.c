@@ -28,7 +28,8 @@ void print_hash128(hash128_t hash)
     print_hex(hash, 16);
 }
 
-void hexdump(char *desc, void *addr, int len) {
+void hexdump(char *desc, void *addr, int len)
+{
     int i;
     unsigned char buff[17];
     unsigned char *pc = (unsigned char*)addr;
@@ -81,64 +82,73 @@ void hexdump(char *desc, void *addr, int len) {
     printf ("  %s\n", buff);
 }
 
-void test_vmess()
+void test_vmess_response()
 {
-    hash128_t user_id = {0};
-    vmess_config_t *config = vmess_config_new(user_id);
-    vmess_state_t *state = vmess_state_new();
-    vmess_serial_t *vser;
-    target_id_t *target = target_id_new_ipv4((byte_t[]){ 127, 0, 0, 1 }, 3151);
+    // vmess_config_t *config = vmess_config_new(user_id);
+    // vmess_state_t *state = vmess_state_new();
 
-    vmess_request_t req = {
-        .target = target,
-        .vers = 1,
-        .crypt = VMESS_CRYPT_AES_128_CFB,
-        .cmd = VMESS_REQ_CMD_TCP,
-        .opt = 1
-    };
+    // vmess_serial_t *vser;
+    // vmess_response_t req;
 
-    size_t size;
-    byte_t *trunk;
-
-    byte_t *header;
-    byte_t *buf;
-    size_t buf_size;
-
-    vmess_request_t req_read;
-    vmess_auth_t auth;
     
-    vmess_auth_init(&auth, config, time(NULL));
+}
 
-    vser = vmess_serial_new(&auth);
+void test_vmess_request()
+{
+    // hash128_t user_id = {0};
+    // vmess_config_t *config = vmess_config_new(user_id);
+    // vmess_state_t *state = vmess_state_new();
+    // vmess_serial_t *vser;
+    // target_id_t *target = target_id_new_ipv4((byte_t[]){ 127, 0, 0, 1 }, 3151);
 
-    vmess_serial_request(vser, config, &req);
-    vmess_serial_write(vser, (byte_t *)"hello", 5);
+    // vmess_request_t req = {
+    //     .target = target,
+    //     .vers = 1,
+    //     .crypt = VMESS_CRYPT_AES_128_CFB,
+    //     .cmd = VMESS_REQ_CMD_TCP,
+    //     .opt = 1
+    // };
 
-    ////////////// decode/encode header
+    // size_t size;
+    // byte_t *trunk;
 
-    header = vmess_serial_digest(vser, &size);
-    hexdump("header", header, size);
-    size = vmess_decode_request(config, &auth, &req_read, header, size);
-    printf("read: %lu\n", size);
-    free(header);
+    // byte_t *header;
+    // byte_t *buf;
+    // size_t buf_size;
 
-    ////////////// decode/encode data
-    trunk = vmess_serial_digest(vser, &size);
-    hexdump("trunk", trunk, size);
-    size = vmess_decode_data(config, &auth, trunk, size, &buf, &buf_size);
-    printf("read: %lu, data size: %lu\n", size, buf_size);
-    hexdump("data", buf, buf_size);
-    free(buf);
-    free(trunk);
+    // vmess_request_t req_read;
+    // vmess_auth_t auth;
+    
+    // vmess_auth_init(&auth, config, time(NULL));
+    // vmess_auth_set_nonce(&auth, vmess_state_next_nonce(state));
 
-    ////////////// decode/encode response
+    // vser = vmess_serial_new(&auth);
 
+    // vmess_serial_request(vser, config, &req);
+    // vmess_serial_write(vser, (byte_t *)"hello", 5);
 
-    vmess_serial_free(vser);
-    target_id_free(target);
+    // ////////////// decode/encode header
 
-    vmess_config_free(config);
-    vmess_state_free(state);
+    // header = vmess_serial_digest(vser, &size);
+    // hexdump("header", header, size);
+    // size = vmess_decode_request(config, &auth, &req_read, header, size);
+    // printf("read: %lu\n", size);
+    // free(header);
+
+    // ////////////// decode/encode data
+    // trunk = vmess_serial_digest(vser, &size);
+    // hexdump("trunk", trunk, size);
+    // size = vmess_decode_data(config, &auth, trunk, size, &buf, &buf_size);
+    // printf("read: %lu, data size: %lu\n", size, buf_size);
+    // hexdump("data", buf, buf_size);
+    // free(buf);
+    // free(trunk);
+
+    // vmess_serial_free(vser);
+    // target_id_free(target);
+
+    // vmess_config_free(config);
+    // vmess_state_free(state);
 }
 
 void test_crypto()
