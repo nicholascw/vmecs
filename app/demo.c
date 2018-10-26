@@ -2,17 +2,12 @@
 #include <pthread.h>
 #include <time.h>
 
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netdb.h>
-#include <unistd.h>
-#include <arpa/inet.h>
-
 #include "proto/vmess/vmess.h"
 #include "proto/vmess/decoding.h"
-#include "proto/rbuf.h"
+#include "proto/buf.h"
+#include "proto/socket.h"
 
-#define PORT "3134"
+#define PORT "3137"
 
 void hexdump(char *desc, void *addr, int len);
 
@@ -70,33 +65,33 @@ void server_proc(int fd)
         }
     }
 
-    // {
-    //     byte_t *trunk;
-    //     size_t size;
+    {
+        byte_t *trunk;
+        size_t size;
 
-    //     // respond
-    //     resp = (vmess_response_t) {
-    //         .opt = 1
-    //     };
+        // respond
+        resp = (vmess_response_t) {
+            .opt = 1
+        };
 
-    //     vser = vmess_serial_new(&auth);
-    //     vmess_serial_response(vser, config, &resp);
-    //     vmess_serial_write(vser, "yes?", 4);
+        vser = vmess_serial_new(&auth);
+        vmess_serial_response(vser, config, &resp);
+        vmess_serial_write(vser, "yes?", 4);
 
-    //     while ((trunk = vmess_serial_digest(vser, &size))) {
-    //         printf("respond data with trunk of size %lu\n", size);
-    //         write(fd, trunk, size);
-    //         free(trunk);
-    //     }
+        while ((trunk = vmess_serial_digest(vser, &size))) {
+            printf("respond data with trunk of size %lu\n", size);
+            write(fd, trunk, size);
+            free(trunk);
+        }
 
-    //     trunk = vmess_serial_end(&size);
-    //     write(fd, trunk, size);
-    //     vmess_serial_free(vser);
-    // }
-
-    close(fd);
+        trunk = vmess_serial_end(&size);
+        write(fd, trunk, size);
+        vmess_serial_free(vser);
+    }
 
 ERROR1:
+
+    close(fd);
     vmess_config_free(config);
     vmess_state_free(state);
     rbuffer_free(rbuf);
@@ -109,10 +104,11 @@ void server()
     struct addrinfo hints, *list;
 
     memset(&hints, 0, sizeof(hints));
+    hints.ai_flags = AI_PASSIVE;
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
 
-    if (getaddrinfo("127.0.0.1", PORT, &hints, &list)) {
+    if (getaddrinfo(NULL, PORT, &hints, &list)) {
         perror("getaddrinfo");
         return;
     }
@@ -134,8 +130,6 @@ void server()
         perror("listen");
         sleep(1);
     }
-
-    freeaddrinfo(list);
 
     printf("server start listening\n");
 
@@ -253,27 +247,27 @@ void client()
                 goto ERROR1;
         }
 
-        // while (!end) {
-        //     switch (rbuffer_read(rbuf, fd, vmess_data_decoder,
-        //                             VMESS_DECODER_CTX(config, &auth), &trunk)) {
-        //         case RBUFFER_SUCCESS:
-        //             hexdump("data read", trunk.data, trunk.size);
+        while (!end) {
+            switch (rbuffer_read(rbuf, fd, vmess_data_decoder,
+                                    VMESS_DECODER_CTX(config, &auth), &trunk)) {
+                case RBUFFER_SUCCESS:
+                    hexdump("data read", trunk.data, trunk.size);
 
-        //             if (trunk.size == 0) end = true;
-        //             data_trunk_destroy(&trunk);
-        //             break;
+                    if (trunk.size == 0) end = true;
+                    data_trunk_destroy(&trunk);
+                    break;
 
-        //         case RBUFFER_ERROR:
-        //             printf("data read error\n");
-        //             end = true;
-        //             break;
+                case RBUFFER_ERROR:
+                    printf("data read error\n");
+                    end = true;
+                    break;
 
-        //         case RBUFFER_INCOMPLETE:
-        //             printf("incomplete data\n");
-        //             end = true;
-        //             break;
-        //     }
-        // }
+                case RBUFFER_INCOMPLETE:
+                    printf("incomplete data\n");
+                    end = true;
+                    break;
+            }
+        }
 
     ERROR1:;
 

@@ -50,6 +50,8 @@ typedef struct {
     size_t size;
 } data_trunk_t;
 
+typedef ssize_t (*decoder_t)(void *context, void *result, const byte_t *dat, size_t dat_size);
+
 INLINE void
 data_trunk_destroy(data_trunk_t *trunk)
 {
@@ -59,7 +61,5 @@ data_trunk_destroy(data_trunk_t *trunk)
         trunk->size = 0;
     }
 }
-
-typedef ssize_t (*decoder_t)(void *context, void *result, const byte_t *dat, size_t dat_size);
 
 #endif
