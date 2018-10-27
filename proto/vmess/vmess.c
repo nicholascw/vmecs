@@ -51,6 +51,16 @@ vmess_config_t *vmess_config_new(hash128_t user_id)
     return ret;
 }
 
+vmess_config_t *vmess_config_copy(vmess_config_t *config)
+{
+    vmess_config_t *ret = malloc(sizeof(*ret));
+    ASSERT(ret, "out of mem");
+
+    memcpy(ret, config, sizeof(*ret));
+
+    return ret;
+}
+
 void vmess_config_free(vmess_config_t *config)
 {
     free(config);
@@ -191,12 +201,17 @@ void vmess_serial_free(vmess_serial_t *vser)
     }
 }
 
-void vmess_request_free(vmess_request_t *req)
+void vmess_request_destroy(vmess_request_t *req)
 {
     if (req) {
         target_id_free(req->target);
-        free(req);
     }
+}
+
+void vmess_request_free(vmess_request_t *req)
+{
+    vmess_request_destroy(req);
+    free(req);
 }
 
 const byte_t *vmess_serial_end(size_t *size_p)

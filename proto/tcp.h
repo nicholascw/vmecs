@@ -33,45 +33,45 @@ typedef struct tcp_socket_t_tag {
 // wrappers
 
 INLINE ssize_t
-tcp_socket_read(tcp_socket_t *sock, byte_t *buf, size_t size)
+tcp_socket_read(void *sock, byte_t *buf, size_t size)
 {
-    return sock->read_func(sock, buf, size);
+    return ((tcp_socket_t *)sock)->read_func(sock, buf, size);
 }
 
 INLINE ssize_t
-tcp_socket_write(tcp_socket_t *sock, const byte_t *buf, size_t size)
+tcp_socket_write(void *sock, const byte_t *buf, size_t size)
 {
-    return sock->write_func(sock, buf, size);
+    return ((tcp_socket_t *)sock)->write_func(sock, buf, size);
 }
 
 INLINE int
-tcp_socket_bind(tcp_socket_t *sock, const char *node, const char *port)
+tcp_socket_bind(void *sock, const char *node, const char *port)
 {
-    return sock->bind_func(sock, node, port);
+    return ((tcp_socket_t *)sock)->bind_func(sock, node, port);
 }
 
 INLINE int
-tcp_socket_listen(tcp_socket_t *sock, int backlog)
+tcp_socket_listen(void *sock, int backlog)
 {
-    return sock->listen_func(sock, backlog);
+    return ((tcp_socket_t *)sock)->listen_func(sock, backlog);
 }
 
-INLINE tcp_socket_t *
-tcp_socket_accept(tcp_socket_t *sock)
+INLINE void *
+tcp_socket_accept(void *sock)
 {
-    return sock->accept_func(sock);
-}
-
-INLINE int
-tcp_socket_connect(tcp_socket_t *sock, const char *node, const char *port)
-{
-    return sock->connect_func(sock, node, port);
+    return ((tcp_socket_t *)sock)->accept_func(sock);
 }
 
 INLINE int
-tcp_socket_close(tcp_socket_t *sock)
+tcp_socket_connect(void *sock, const char *node, const char *port)
 {
-    return sock->close_func(sock);
+    return ((tcp_socket_t *)sock)->connect_func(sock, node, port);
+}
+
+INLINE int
+tcp_socket_close(void *sock)
+{
+    return ((tcp_socket_t *)sock)->close_func(sock);
 }
 
 #endif

@@ -3,6 +3,7 @@
 #include <errno.h>
 
 #include "buf.h"
+#include "socket.h"
 
 rbuffer_t *
 rbuffer_new(size_t init)
@@ -44,10 +45,10 @@ rbuffer_read(rbuffer_t *buf, int fd, decoder_t decoder, void *context, void *res
 
             rest = buf->size - buf->w_idx;
 
-            n_read = read(fd, buf->buf + buf->w_idx, rest);
+            n_read = read_r(fd, buf->buf + buf->w_idx, rest);
 
             if (n_read == -1) {
-                if (errno == EAGAIN || errno == EINTR) {
+                if (errno == EAGAIN) {
                     // read again
                     continue;
                 } else {

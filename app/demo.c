@@ -4,283 +4,76 @@
 
 #include "proto/vmess/vmess.h"
 #include "proto/vmess/decoding.h"
+#include "proto/vmess/tcp.h"
 #include "proto/buf.h"
 #include "proto/socket.h"
 
-#define PORT "3137"
+#define PORT "3135"
 
 void hexdump(char *desc, void *addr, int len);
 
-void server_proc(int fd)
-{
-    hash128_t user_id = {0};
-    vmess_config_t *config = vmess_config_new(user_id);
-    vmess_state_t *state = vmess_state_new();
-
-    vmess_auth_t auth;
-    vmess_request_t req;
-    vmess_response_t resp;
-
-    vmess_serial_t *vser;
-
-    rbuffer_t *rbuf;
-    data_trunk_t trunk;
-    bool end = false;
-
-    rbuf = rbuffer_new(1024);
-
-    switch (rbuffer_read(rbuf, fd, vmess_request_decoder,
-                         VMESS_DECODER_CTX(config, &auth), &req)) {
-        case RBUFFER_SUCCESS:
-            break;
-
-        case RBUFFER_ERROR:
-            printf("invalid header\n");
-            goto ERROR1;
-
-        case RBUFFER_INCOMPLETE:
-            printf("incomplete header\n");
-            goto ERROR1;
-    }
-
-    while (!end) {
-        switch (rbuffer_read(rbuf, fd, vmess_data_decoder,
-                             VMESS_DECODER_CTX(config, &auth), &trunk)) {
-            case RBUFFER_SUCCESS:
-                hexdump("data read", trunk.data, trunk.size);
-
-                if (trunk.size == 0) end = true;
-                data_trunk_destroy(&trunk);
-                break;
-
-            case RBUFFER_ERROR:
-                printf("data read error\n");
-                end = true;
-                break;
-
-            case RBUFFER_INCOMPLETE:
-                printf("incomplete data\n");
-                end = true;
-                break;
-        }
-    }
-
-    {
-        byte_t *trunk;
-        size_t size;
-
-        // respond
-        resp = (vmess_response_t) {
-            .opt = 1
-        };
-
-        vser = vmess_serial_new(&auth);
-        vmess_serial_response(vser, config, &resp);
-        vmess_serial_write(vser, "yes?", 4);
-
-        while ((trunk = vmess_serial_digest(vser, &size))) {
-            printf("respond data with trunk of size %lu\n", size);
-            write(fd, trunk, size);
-            free(trunk);
-        }
-
-        trunk = vmess_serial_end(&size);
-        write(fd, trunk, size);
-        vmess_serial_free(vser);
-    }
-
-ERROR1:
-
-    close(fd);
-    vmess_config_free(config);
-    vmess_state_free(state);
-    rbuffer_free(rbuf);
-
-    return;
-}
+hash128_t user_id = {0};
 
 void server()
 {
-    struct addrinfo hints, *list;
+    vmess_config_t *config = vmess_config_new(user_id);
+    vmess_tcp_socket_t *sock = vmess_tcp_socket_new(config);
+    vmess_tcp_socket_t *client;
 
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_flags = AI_PASSIVE;
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_STREAM;
+    byte_t buf[1];
 
-    if (getaddrinfo(NULL, PORT, &hints, &list)) {
-        perror("getaddrinfo");
-        return;
-    }
-
-    int fd = socket(AF_INET, SOCK_STREAM, hints.ai_protocol);
-    int cli;
-
-    if (fd == -1) {
-        perror("socket");
-        return;
-    }
-
-    while (bind(fd, list->ai_addr, list->ai_addrlen)) {
-        perror("bind");
+    while (tcp_socket_bind(sock, "127.0.0.1", PORT)) {
         sleep(1);
     }
+    
+    tcp_socket_listen(sock, 5);
 
-    while (listen(fd, 5)) {
-        perror("listen");
-        sleep(1);
-    }
+    client = tcp_socket_accept(sock);
+    ASSERT(client, "server accept failed");
 
-    printf("server start listening\n");
+    printf("accepted client %p\n", client);
 
-    while (1) {
-        cli = accept(fd, NULL, NULL);
+    tcp_socket_read(client, buf, 1);
+    printf("server received %s\n", buf);
 
-        printf("server accepted\n");
-        server_proc(cli);
-        printf("client disconnected\n");
-        
-        break;
-    }
+    tcp_socket_write(client, "y", 1);
 
-    close(fd);
+    sleep(1);
+
+    printf("closing server\n");
+    tcp_socket_close(client);
+    tcp_socket_close(sock);
+    printf("server closed\n");
+
+    vmess_config_free(config);
 }
 
 void client()
 {
-    struct addrinfo hints, *list;
+    vmess_config_t *config = vmess_config_new(user_id);
+    vmess_tcp_socket_t *sock = vmess_tcp_socket_new(config);
+    target_id_t *target = target_id_new_ipv4((byte_t[]){ 127, 0, 0, 1 }, 3151);
+    
+    byte_t buf[1];
 
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_STREAM;
+    vmess_tcp_socket_set_target(sock, target);
+    vmess_tcp_socket_auth(sock, time(NULL));
 
-    if (getaddrinfo("127.0.0.1", PORT, &hints, &list)) {
-        perror("getaddrinfo");
-        return;
-    }
-
-    int fd = socket(AF_INET, SOCK_STREAM, hints.ai_protocol);
-
-    if (fd == -1) {
-        perror("socket");
-        return;
-    }
-
-    while (connect(fd, list->ai_addr, list->ai_addrlen)) {
-        perror("connect");
+    while (tcp_socket_connect(sock, "127.0.0.1", PORT)) {
         sleep(1);
     }
 
-    printf("client connected\n");
+    tcp_socket_write(sock, "b", 1);
 
-    // init vmess connection
-    hash128_t user_id = {0};
-    vmess_config_t *config = vmess_config_new(user_id);
-    vmess_state_t *state = vmess_state_new();
+    tcp_socket_read(sock, buf, 1);
+    printf("client received %s\n", buf);
 
-    vmess_auth_t auth;
-    vmess_request_t req;
-    vmess_response_t resp;
-
-    vmess_serial_t *vser;
-    target_id_t *target;
-
-    byte_t *trunk;
-    size_t size;
-
-    // init auth
-    vmess_auth_init(&auth, config, time(NULL));
-    vmess_auth_set_nonce(&auth, vmess_state_next_nonce(state));
-
-    // init serializer
-    vser = vmess_serial_new(&auth);
-
-    // init request
-    target = target_id_new_ipv4((byte_t[]){ 127, 0, 0, 1 }, 3151);
-    req = (vmess_request_t) {
-        .target = target,
-        .vers = 1,
-        .crypt = VMESS_CRYPT_AES_128_CFB,
-        .cmd = VMESS_REQ_CMD_TCP,
-        .opt = 1
-    };
-
-    vmess_serial_request(vser, config, &req);
-    vmess_serial_write(vser, (byte_t *)"hello", 5);
-
-    while ((trunk = vmess_serial_digest(vser, &size))) {
-        printf("write trunk of size %lu\n", size);
-        write(fd, trunk, size);
-        free(trunk);
-    }
-
-    vmess_serial_write(vser, (byte_t *)"hi", 2);
-
-    while ((trunk = vmess_serial_digest(vser, &size))) {
-        printf("write trunk of size %lu\n", size);
-        write(fd, trunk, size);
-        free(trunk);
-    }
-
-    // write the end data trunk
-    trunk = vmess_serial_end(&size);
-    write(fd, trunk, size);
-
-    {
-        rbuffer_t *rbuf;
-        data_trunk_t trunk;
-        bool end = false;
-
-        rbuf = rbuffer_new(1024);
-
-        switch (rbuffer_read(rbuf, fd, vmess_response_decoder,
-                            VMESS_DECODER_CTX(config, &auth), &resp)) {
-            case RBUFFER_SUCCESS:
-                break;
-
-            case RBUFFER_ERROR:
-                printf("invalid response header\n");
-                goto ERROR1;
-
-            case RBUFFER_INCOMPLETE:
-                printf("incomplete response header\n");
-                goto ERROR1;
-        }
-
-        while (!end) {
-            switch (rbuffer_read(rbuf, fd, vmess_data_decoder,
-                                    VMESS_DECODER_CTX(config, &auth), &trunk)) {
-                case RBUFFER_SUCCESS:
-                    hexdump("data read", trunk.data, trunk.size);
-
-                    if (trunk.size == 0) end = true;
-                    data_trunk_destroy(&trunk);
-                    break;
-
-                case RBUFFER_ERROR:
-                    printf("data read error\n");
-                    end = true;
-                    break;
-
-                case RBUFFER_INCOMPLETE:
-                    printf("incomplete data\n");
-                    end = true;
-                    break;
-            }
-        }
-
-    ERROR1:;
-
-        rbuffer_free(rbuf);
-    }
-
-    close(fd);
+    printf("closing client\n");
+    tcp_socket_close(sock);
+    printf("client closed\n");
 
     vmess_config_free(config);
-    vmess_state_free(state);
-    vmess_serial_free(vser);
-
-    printf("client finished\n");
+    target_id_free(target);
 }
 
 void *run(void *f)
@@ -289,20 +82,8 @@ void *run(void *f)
     return NULL;
 }
 
-void test_vmess();
-
-// pattern
-// loop:
-// read some data
-// try to decode
-//     -> need more -> goto loop
-//     -> error -> end connection
-
 int main()
 {
-    // test_vmess_request();
-    // test_vmess_response();
-
     pthread_t client_tid, server_tid;
     
     pthread_create(&client_tid, NULL, run, client);

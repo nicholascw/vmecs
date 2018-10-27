@@ -35,6 +35,20 @@ target_id_t *target_id_new_ipv4(uint8_t addr[4], uint16_t port);
 target_id_t *target_id_new_ipv6(uint8_t addr[16], uint16_t port);
 target_id_t *target_id_new_domain(const char *domain, uint64_t port);
 
+INLINE target_id_t *target_id_copy(target_id_t *target)
+{
+    target_id_t *ret = malloc(sizeof(*ret));
+    ASSERT(ret, "out of mem");
+
+    memcpy(ret, target, sizeof(*ret));
+    
+    if (ret->addr_type == ADDR_TYPE_DOMAIN) {
+        ret->addr.domain = strdup(ret->addr.domain);
+    }
+
+    return ret;
+}
+
 void target_id_free(target_id_t *target);
 
 typedef struct {

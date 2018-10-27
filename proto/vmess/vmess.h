@@ -111,6 +111,8 @@ typedef struct {
 vmess_config_t *vmess_config_new(hash128_t user_id);
 void vmess_config_free(vmess_config_t *config);
 
+vmess_config_t *vmess_config_copy(vmess_config_t *config);
+
 vmess_state_t *vmess_state_new();
 
 INLINE byte_t
@@ -149,6 +151,7 @@ const byte_t *vmess_serial_end(size_t *size_p);
 
 void vmess_serial_free(vmess_serial_t *vser);
 void vmess_request_free(vmess_request_t *req);
+void vmess_request_destroy(vmess_request_t *req);
 
 void
 vmess_gen_validation_code(const hash128_t user_id, uint64_t timestamp, hash128_t out);
