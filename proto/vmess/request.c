@@ -23,6 +23,7 @@ vmess_serial_request(vmess_serial_t *vser,
     size_t cmd_size;
     size_t out_size;
     byte_t *cmd, *enc_cmd;
+    byte_t domain_len;
 
     uint32_t checksum;
 
@@ -66,8 +67,9 @@ vmess_serial_request(vmess_serial_t *vser,
             break;
 
         case ADDR_TYPE_DOMAIN:
-            serial_write_u8(&ser, req->target->domain_len);
-            serial_write(&ser, req->target->addr.domain, req->target->domain_len);
+            domain_len = strlen(req->target->addr.domain);
+            serial_write_u8(&ser, domain_len);
+            serial_write(&ser, req->target->addr.domain, domain_len);
             break;
 
         case ADDR_TYPE_IPV6:

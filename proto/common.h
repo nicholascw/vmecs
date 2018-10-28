@@ -28,12 +28,13 @@ typedef struct {
     uint16_t port; // stored in local endianness
 
     byte_t addr_type;
-    byte_t domain_len; // used only if addr type == ADDR_TYPE_DOMAIN
 } target_id_t;
 
 target_id_t *target_id_new_ipv4(uint8_t addr[4], uint16_t port);
 target_id_t *target_id_new_ipv6(uint8_t addr[16], uint16_t port);
 target_id_t *target_id_new_domain(const char *domain, uint64_t port);
+
+target_id_t *target_id_parse(const char *node, const char *service);
 
 INLINE target_id_t *target_id_copy(target_id_t *target)
 {
@@ -49,6 +50,7 @@ INLINE target_id_t *target_id_copy(target_id_t *target)
     return ret;
 }
 
+struct addrinfo *target_id_resolve(target_id_t *target);
 void target_id_free(target_id_t *target);
 
 typedef struct {

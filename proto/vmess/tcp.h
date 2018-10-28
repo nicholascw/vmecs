@@ -17,7 +17,11 @@ typedef struct {
     vmess_serial_t *vser;
 
     vmess_config_t *config;
-    target_id_t *target;
+
+    union {
+        target_id_t *proxy; // used by client
+        target_id_t *target; // used by server
+    } addr;
 
     pthread_t reader, writer;
 
@@ -30,17 +34,25 @@ vmess_tcp_socket_t *
 vmess_tcp_socket_new(vmess_config_t *config);
 
 INLINE void
+vmess_tcp_socket_set_proxy(vmess_tcp_socket_t *sock,
+                           target_id_t *proxy)
+{
+    target_id_free(sock->addr.proxy);
+    sock->addr.proxy = target_id_copy(proxy);
+}
+
+INLINE void
 vmess_tcp_socket_set_target(vmess_tcp_socket_t *sock,
                             target_id_t *target)
 {
-    target_id_free(sock->target);
-    sock->target = target_id_copy(target);
+    target_id_free(sock->addr.target);
+    sock->addr.target = target_id_copy(target);
 }
 
 INLINE const target_id_t *
 vmess_tcp_socket_get_target(vmess_tcp_socket_t *sock)
 {
-    return sock->target;
+    return sock->addr.target;
 }
 
 INLINE void

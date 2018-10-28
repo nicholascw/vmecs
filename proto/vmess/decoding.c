@@ -210,6 +210,8 @@ vmess_decode_request(vmess_config_t *config,
             ASSERT(domain, "out of mem");
 
             if (!serial_read(&ser, domain, len)) DECODE_FAIL(0);
+            domain[len] = 0;
+
             target = target_id_new_domain(domain, port);
 
             free(domain);

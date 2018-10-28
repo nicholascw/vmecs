@@ -36,7 +36,6 @@ _vmess_tcp_socket_bind(tcp_socket_t *_sock, const char *node, const char *port)
     memset(&hints, 0, sizeof(hints));
     hints.ai_flags = AI_PASSIVE;
     hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_STREAM;
 
     if (getaddrinfo(node, port, &hints, &list)) {
         perror("getaddrinfo");
@@ -45,8 +44,11 @@ _vmess_tcp_socket_bind(tcp_socket_t *_sock, const char *node, const char *port)
 
     if (bind(sock->sock, list->ai_addr, list->ai_addrlen)) {
         perror("bind");
+        freeaddrinfo(list);
         return -1;
     }
+
+    freeaddrinfo(list);
 
     return 0;
 }
@@ -72,7 +74,7 @@ _vmess_tcp_socket_free(vmess_tcp_socket_t *sock)
         vbuffer_free(sock->write_buf);
         vmess_config_free(sock->config);
         vmess_serial_free(sock->vser);
-        target_id_free(sock->target);
+        target_id_free(sock->addr.proxy);
         free(sock);
     }
 }
@@ -100,7 +102,7 @@ _vmess_tcp_socket_close(tcp_socket_t *_sock)
 }
 
 static bool
-_vmess_tcp_socket_handshake(vmess_tcp_socket_t *sock)
+_vmess_tcp_socket_handshake(vmess_tcp_socket_t *sock, target_id_t *target)
 {
     rbuffer_t *rbuf;
 
@@ -142,14 +144,14 @@ _vmess_tcp_socket_handshake(vmess_tcp_socket_t *sock)
             free(trunk);
         }
 
+        print_target(req.target);
+
         vmess_tcp_socket_set_target(sock, req.target);
         vmess_request_destroy(&req);
     } else {
-        ASSERT(sock->target, "client: socket target not set");
-
         // send request
         req = (vmess_request_t) {
-            .target = sock->target,
+            .target = target,
             .vers = 1,
             .crypt = VMESS_CRYPT_AES_128_CFB,
             .cmd = VMESS_REQ_CMD_TCP,
@@ -290,7 +292,7 @@ _vmess_tcp_socket_accept(tcp_socket_t *_sock)
     ret = _vmess_tcp_socket_new_fd(sock->config, client);
     ret->server = true;
     
-    if (!_vmess_tcp_socket_handshake(ret)) {
+    if (!_vmess_tcp_socket_handshake(ret, NULL)) {
         _vmess_tcp_socket_close((tcp_socket_t *)ret);
         return NULL;
     }
@@ -307,28 +309,30 @@ static int
 _vmess_tcp_socket_connect(tcp_socket_t *_sock, const char *node, const char *port)
 {
     vmess_tcp_socket_t *sock = (vmess_tcp_socket_t *)_sock;
-    struct addrinfo hints, *list;
+    struct addrinfo *list;
+    target_id_t *target;
 
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_flags = AI_PASSIVE;
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_STREAM;
+    ASSERT(sock->addr.proxy, "proxy server not set");
 
-    if (getaddrinfo(node, port, &hints, &list)) {
-        perror("getaddrinfo");
-        return -1;
-    }
+    list = target_id_resolve(sock->addr.proxy);
 
     if (connect(sock->sock, list->ai_addr, list->ai_addrlen)) {
         perror("connect");
+        freeaddrinfo(list);
         return -1;
     }
+
+    freeaddrinfo(list);
 
     sock->server = false;
+    target = target_id_parse(node, port);
 
-    if (!_vmess_tcp_socket_handshake(sock)) {
+    if (!_vmess_tcp_socket_handshake(sock, target)) {
+        target_id_free(target);
         return -1;
     }
+
+    target_id_free(target);
 
     pthread_create(&sock->reader, NULL, _vmess_tcp_socket_reader, sock);
     pthread_create(&sock->writer, NULL, _vmess_tcp_socket_writer, sock);
@@ -360,7 +364,7 @@ _vmess_tcp_socket_new_fd(vmess_config_t *config, int fd)
     ret->started = false; // if the threads have been started
 
     ret->config = vmess_config_copy(config);
-    ret->target = NULL;
+    ret->addr.proxy = NULL;
     ret->vser = NULL;
 
     ret->read_func = _vmess_tcp_socket_read;

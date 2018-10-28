@@ -6,7 +6,7 @@
 
 #define ASSERT(cond, ...) \
     if (!(cond)) { \
-        fprintf(stderr, "%s failed: ", #cond); \
+        fprintf(stderr, "%s: line %d: `%s` failed: ", __FILE__, __LINE__, #cond); \
         fprintf(stderr, __VA_ARGS__); \
         puts(""); \
         abort(); \

@@ -37,6 +37,48 @@ target_id_t *target_id_new_domain(const char *domain, uint64_t port)
     return id;
 }
 
+target_id_t *target_id_parse(const char *node, const char *service)
+{
+    target_id_t *id = _target_id_new(ADDR_TYPE_DOMAIN, atoi(service));
+    id->addr.domain = strdup(node);
+    return id;
+}
+
+struct addrinfo *target_id_resolve(target_id_t *target)
+{
+    char buf[256 + 1];
+    char port[8];
+    struct addrinfo hints, *res;
+
+    switch (target->addr_type) {
+        case ADDR_TYPE_DOMAIN:
+            sprintf(buf, "%s", target->addr.domain);
+            break;
+
+        case ADDR_TYPE_IPV4:
+            sprintf(buf, "%d.%d.%d.%d",
+                    target->addr.ipv4[0], target->addr.ipv4[1],
+                    target->addr.ipv4[2], target->addr.ipv4[3]);
+            break;
+
+        case ADDR_TYPE_IPV6:
+            ASSERT(0, "not implemented");
+            break;
+    }
+
+    sprintf(port, "%d", target->port);
+
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_UNSPEC;
+
+    if (getaddrinfo(buf, port, &hints, &res)) {
+        perror("getaddrinfo");
+        return NULL;
+    }
+
+    return res;
+}
+
 void target_id_free(target_id_t *target)
 {
     if (target) {
