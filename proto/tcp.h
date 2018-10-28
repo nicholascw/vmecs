@@ -10,7 +10,8 @@
     tcp_socket_listen_t listen_func; \
     tcp_socket_accept_t accept_func; \
     tcp_socket_connect_t connect_func; \
-    tcp_socket_close_t close_func;
+    tcp_socket_close_t close_func; \
+    tcp_socket_target_t target_func; /* optional*/
 
 struct tcp_socket_t_tag;
 
@@ -22,6 +23,8 @@ typedef int (*tcp_socket_listen_t)(struct tcp_socket_t_tag *sock, int backlog);
 typedef struct tcp_socket_t_tag *(*tcp_socket_accept_t)(struct tcp_socket_t_tag *sock);
 
 typedef int (*tcp_socket_connect_t)(struct tcp_socket_t_tag *sock, const char *node, const char *port);
+
+typedef target_id_t *(*tcp_socket_target_t)(struct tcp_socket_t_tag *sock);
 
 typedef int (*tcp_socket_close_t)(struct tcp_socket_t_tag *sock);
 
@@ -72,6 +75,14 @@ INLINE int
 tcp_socket_close(void *sock)
 {
     return ((tcp_socket_t *)sock)->close_func(sock);
+}
+
+// only used for proxy protocols
+INLINE target_id_t *
+tcp_socket_target(void *sock)
+{
+    ASSERT((tcp_socket_t *)sock)->target_func, "target function not implemented");
+    return ((tcp_socket_t *)sock)->target_func(sock);
 }
 
 #endif

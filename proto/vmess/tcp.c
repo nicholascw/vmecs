@@ -352,6 +352,14 @@ _vmess_tcp_socket_connect(tcp_socket_t *_sock, const char *node, const char *por
     //    if remote returned end packet, exit thread(remote closed)
 }
 
+static target_id_t *
+_vmess_tcp_socket_target(tcp_socket_t *_sock)
+{
+    vmess_tcp_socket_t *sock = (vmess_tcp_socket_t *)_sock;
+    ASSERT(sock->addr.target, "vmess target not set");
+    return target_id_copy(sock->addr.target);
+}
+
 static vmess_tcp_socket_t *
 _vmess_tcp_socket_new_fd(vmess_config_t *config, int fd)
 {
@@ -374,6 +382,7 @@ _vmess_tcp_socket_new_fd(vmess_config_t *config, int fd)
     ret->accept_func = _vmess_tcp_socket_accept;
     ret->connect_func = _vmess_tcp_socket_connect;
     ret->close_func = _vmess_tcp_socket_close;
+    ret->target_func = _vmess_tcp_socket_target;
 
     ret->read_buf = vbuffer_new(TCP_DEFAULT_BUF);
     ret->write_buf = vbuffer_new(TCP_DEFAULT_BUF);
