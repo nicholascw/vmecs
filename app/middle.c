@@ -24,8 +24,8 @@ int main()
     memset(user_id, 0, sizeof(user_id));
 
     config = vmess_config_new(user_id);
-    local = target_id_new_ipv4((byte_t[]) { 127, 0, 0, 1 }, 3131);
-    proxy = target_id_new_ipv4((byte_t[]) { 127, 0, 0, 1 }, 3132);
+    local = target_id_new_ipv4((byte_t []) { 127, 0, 0, 1 }, 3131);
+    proxy = target_id_new_ipv4((byte_t []) { 127, 0, 0, 1 }, 3132);
 
     inbound = vmess_tcp_inbound_new(config, local);
     outbound = vmess_tcp_outbound_new(config, proxy);

@@ -27,7 +27,7 @@ int main()
     memset(user_id, 0, sizeof(user_id));
 
     config = vmess_config_new(user_id);
-    proxy = target_id_new_ipv4((byte_t[]) { 127, 0, 0, 1 }, 3131);
+    proxy = target_id_new_ipv4((byte_t []) { 127, 0, 0, 1 }, 3131);
 
     sock = vmess_tcp_socket_new(config);
 
