@@ -44,34 +44,27 @@ rbuffer_read(rbuffer_t *buf, int fd, decoder_t decoder, void *context, void *res
             }
 
             rest = buf->size - buf->w_idx;
-
             n_read = read_r(fd, buf->buf + buf->w_idx, rest);
 
             if (n_read == -1) {
-                if (errno == EAGAIN) {
-                    // read again
-                    continue;
-                } else {
-                    // fail and return
-                    return RBUFFER_ERROR;
-                }
-            }
-        }
+                return RBUFFER_ERROR;
+            } // else hexdump("received", buf->buf + buf->w_idx, n_read);
 
-        // actual data read, try decoding
-        buf->w_idx += n_read;
+            if (n_read == 0) {
+                return RBUFFER_INCOMPLETE;
+            }
+
+            // actual data read, try decoding
+            buf->w_idx += n_read;
+            should_read = false;
+        }
         
+        // printf("decoding trunk of size %lu\n", buf->w_idx);
         n_decoded = decoder(context, result, buf->buf, buf->w_idx);
+        // printf("decoded: %ld\n", n_decoded);
 
         if (n_decoded == 0) {
-            if (n_read == 0) {
-                if (should_read) {
-                    return RBUFFER_INCOMPLETE;
-                } else {
-                    should_read = true;
-                }
-            }
-
+            should_read = true;
             // no enough data, continue
         } else if (n_decoded == -1) {
             // error
@@ -80,6 +73,11 @@ rbuffer_read(rbuffer_t *buf, int fd, decoder_t decoder, void *context, void *res
             // success, truncate the decoded part
             buf->w_idx -= n_decoded;
             memmove(buf->buf, buf->buf + n_decoded, buf->w_idx);
+
+            // if (buf->w_idx) {
+            //     hexdump("rest", buf->buf, buf->w_idx);
+            // } else printf("no rest!!!\n");
+
             return RBUFFER_SUCCESS;
         }
     }
@@ -102,6 +100,7 @@ vbuffer_new(size_t init)
 
     pthread_mutex_init(&ret->mut, NULL);
     pthread_cond_init(&ret->cond, NULL);
+    pthread_cond_init(&ret->drain, NULL);
 
     ret->size = init > 1 ? init : 1;
     ret->w_idx = 0;
@@ -110,6 +109,18 @@ vbuffer_new(size_t init)
     ASSERT(ret->buf, "out of mem");
 
     return ret;
+}
+
+void
+vbuffer_drain(vbuffer_t *vbuf)
+{
+    pthread_mutex_lock(&vbuf->mut);
+
+    while (vbuf->w_idx) {
+        pthread_cond_wait(&vbuf->drain, &vbuf->mut);
+    }
+
+    pthread_mutex_unlock(&vbuf->mut);
 }
 
 size_t
@@ -123,7 +134,7 @@ vbuffer_read(vbuffer_t *vbuf, byte_t *buf, size_t buf_size)
         pthread_cond_wait(&vbuf->cond, &vbuf->mut);
     }
 
-    if (vbuf->eof) {
+    if (!vbuf->w_idx && vbuf->eof) {
         pthread_mutex_unlock(&vbuf->mut);
         return 0;
     }
@@ -134,6 +145,10 @@ vbuffer_read(vbuffer_t *vbuf, byte_t *buf, size_t buf_size)
     memmove(vbuf->buf, vbuf->buf + n_read, vbuf->w_idx - n_read);
 
     vbuf->w_idx -= n_read;
+
+    if (vbuf->w_idx == 0) {
+        pthread_cond_broadcast(&vbuf->drain);
+    }
 
     pthread_mutex_unlock(&vbuf->mut);
 
@@ -151,6 +166,11 @@ void
 vbuffer_write(vbuffer_t *vbuf, const byte_t *buf, size_t buf_size)
 {
     pthread_mutex_lock(&vbuf->mut);
+
+    if (vbuf->eof) {
+        pthread_mutex_unlock(&vbuf->mut);
+        return;
+    }
 
     while (vbuf->w_idx + buf_size > vbuf->size) {
         _vbuffer_extend(vbuf);
@@ -183,6 +203,7 @@ vbuffer_free(vbuffer_t *vbuf)
     if (vbuf) {
         pthread_mutex_destroy(&vbuf->mut);
         pthread_cond_destroy(&vbuf->cond);
+        pthread_cond_destroy(&vbuf->drain);
         free(vbuf->buf);
         free(vbuf);
     }

@@ -16,27 +16,6 @@ void hexdump(char *desc, void *addr, int len);
 
 hash128_t user_id = {0};
 
-void print_target(target_id_t *target)
-{
-    switch (target->addr_type) {
-        case ADDR_TYPE_IPV4:
-            printf("%d.%d.%d.%d:%d\n",
-                   target->addr.ipv4[0], target->addr.ipv4[1],
-                   target->addr.ipv4[2], target->addr.ipv4[3],
-                   target->port);
-
-            break;
-
-        case ADDR_TYPE_DOMAIN:
-            printf("%s:%d\n",
-                   target->addr.domain, target->port);
-            break;
-
-        case ADDR_TYPE_IPV6:
-            ASSERT(0, "unimplemented");
-    }
-}
-
 void server()
 {
     // vmess_config_t *config = vmess_config_new(user_id);
@@ -73,6 +52,8 @@ void server()
     printf("closing server\n");
     tcp_socket_close(client);
     tcp_socket_close(sock);
+    tcp_socket_free(client);
+    tcp_socket_free(sock);
     printf("server closed\n");
 
     // vmess_config_free(config);
@@ -103,6 +84,7 @@ void client()
 
     printf("closing client\n");
     tcp_socket_close(sock);
+    tcp_socket_free(sock);
     printf("client closed\n");
 
     // vmess_config_free(config);

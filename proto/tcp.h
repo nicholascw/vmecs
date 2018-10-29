@@ -2,6 +2,7 @@
 #define _PROTO_TCP_H_
 
 #include "pub/type.h"
+#include "proto/common.h"
 
 #define TCP_SOCKET_HEADER \
     tcp_socket_read_t read_func; \
@@ -11,6 +12,7 @@
     tcp_socket_accept_t accept_func; \
     tcp_socket_connect_t connect_func; \
     tcp_socket_close_t close_func; \
+    tcp_socket_free_t free_func; \
     tcp_socket_target_t target_func; /* optional*/
 
 struct tcp_socket_t_tag;
@@ -27,6 +29,7 @@ typedef int (*tcp_socket_connect_t)(struct tcp_socket_t_tag *sock, const char *n
 typedef target_id_t *(*tcp_socket_target_t)(struct tcp_socket_t_tag *sock);
 
 typedef int (*tcp_socket_close_t)(struct tcp_socket_t_tag *sock);
+typedef void (*tcp_socket_free_t)(struct tcp_socket_t_tag *sock);
 
 // an abstract layer for tcp connection
 typedef struct tcp_socket_t_tag {
@@ -77,12 +80,42 @@ tcp_socket_close(void *sock)
     return ((tcp_socket_t *)sock)->close_func(sock);
 }
 
+INLINE void
+tcp_socket_free(void *sock)
+{
+    ((tcp_socket_t *)sock)->free_func(sock);
+}
+
 // only used for proxy protocols
 INLINE target_id_t *
 tcp_socket_target(void *sock)
 {
-    ASSERT((tcp_socket_t *)sock)->target_func, "target function not implemented");
+    ASSERT(((tcp_socket_t *)sock)->target_func, "target function not implemented");
     return ((tcp_socket_t *)sock)->target_func(sock);
+}
+
+INLINE int
+tcp_socket_bind_target(void *sock, const target_id_t *target)
+{
+    char node_buf[TARGET_ID_MAX_DOMAIN + 1];
+    char serv_buf[TARGET_ID_MAX_PORT + 1];
+
+    target_id_node(target, node_buf);
+    target_id_port(target, serv_buf);
+
+    return tcp_socket_bind(sock, node_buf, serv_buf);
+}
+
+INLINE int
+tcp_socket_connect_target(void *sock, const target_id_t *target)
+{
+    char node_buf[TARGET_ID_MAX_DOMAIN + 1];
+    char serv_buf[TARGET_ID_MAX_PORT + 1];
+
+    target_id_node(target, node_buf);
+    target_id_port(target, serv_buf);
+
+    return tcp_socket_connect(sock, node_buf, serv_buf);
 }
 
 #endif

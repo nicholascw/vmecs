@@ -36,7 +36,7 @@ target_id_t *target_id_new_domain(const char *domain, uint64_t port);
 
 target_id_t *target_id_parse(const char *node, const char *service);
 
-INLINE target_id_t *target_id_copy(target_id_t *target)
+INLINE target_id_t *target_id_copy(const target_id_t *target)
 {
     target_id_t *ret = malloc(sizeof(*ret));
     ASSERT(ret, "out of mem");
@@ -50,8 +50,59 @@ INLINE target_id_t *target_id_copy(target_id_t *target)
     return ret;
 }
 
-struct addrinfo *target_id_resolve(target_id_t *target);
+struct addrinfo *target_id_resolve(const target_id_t *target);
 void target_id_free(target_id_t *target);
+
+#define TARGET_ID_MAX_DOMAIN 256
+#define TARGET_ID_MAX_PORT 8
+
+INLINE void
+target_id_node(const target_id_t *target, char buf[TARGET_ID_MAX_DOMAIN + 1])
+{
+    switch (target->addr_type) {
+        case ADDR_TYPE_DOMAIN:
+            sprintf(buf, "%s", target->addr.domain);
+            break;
+
+        case ADDR_TYPE_IPV4:
+            sprintf(buf, "%d.%d.%d.%d",
+                    target->addr.ipv4[0], target->addr.ipv4[1],
+                    target->addr.ipv4[2], target->addr.ipv4[3]);
+            break;
+
+        case ADDR_TYPE_IPV6:
+            ASSERT(0, "not implemented");
+            break;
+    }
+}
+
+INLINE void
+target_id_port(const target_id_t *target, char buf[TARGET_ID_MAX_PORT + 1])
+{
+    sprintf(buf, "%d", target->port);
+}
+
+INLINE void
+print_target(const target_id_t *target)
+{
+    switch (target->addr_type) {
+        case ADDR_TYPE_IPV4:
+            printf("%d.%d.%d.%d:%d\n",
+                   target->addr.ipv4[0], target->addr.ipv4[1],
+                   target->addr.ipv4[2], target->addr.ipv4[3],
+                   target->port);
+
+            break;
+
+        case ADDR_TYPE_DOMAIN:
+            printf("%s:%d\n",
+                   target->addr.domain, target->port);
+            break;
+
+        case ADDR_TYPE_IPV6:
+            ASSERT(0, "unimplemented");
+    }
+}
 
 typedef struct {
     target_id_t *target;

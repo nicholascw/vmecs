@@ -13,8 +13,8 @@
 #include "proto/common.h"
 #include "vmess.h"
 
-#define AES_128_CFB_TRUNK (((uint16_t)~0) - 1 - 4) // 2^16 - 1 - 4(checksum)
-#define NO_ENC_TRUNK (((uint16_t)~0) - 1) // 2^16 - 1
+#define AES_128_CFB_TRUNK 1024 // (((uint16_t)~0) - 1 - 4) // 2^16 - 1 - 4(checksum)
+#define NO_ENC_TRUNK 1024 // (((uint16_t)~0) - 1) // 2^16 - 1
 
 void vmess_gen_key(vmess_config_t *config, hash128_t key)
 {
@@ -156,6 +156,8 @@ byte_t *vmess_serial_digest(vmess_serial_t *vser, size_t *size_p)
             *((uint16_t *)trunk) = be16(trunk_size + 4);
             *((uint32_t *)(trunk + 2)) = be32(crypto_fnv1a(data, trunk_size));
             memcpy(trunk + 6, data, trunk_size);
+
+            // printf("checksum %d\n", *((uint32_t *)(trunk + 2)));
 
             // encrypt
             enc_data = crypto_aes_128_cfb_enc(vser->auth.key, vser->auth.iv, trunk + 2, trunk_size + 4, &out_size);

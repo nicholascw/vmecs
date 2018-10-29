@@ -25,6 +25,8 @@ typedef struct {
 
     pthread_t reader, writer;
 
+    pthread_mutex_t write_mut;
+
     int sock;
     bool server;
     bool started;

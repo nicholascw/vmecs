@@ -56,6 +56,8 @@ vmess_decode_data(vmess_config_t *config, const vmess_auth_t *auth,
     uint32_t checksum_expect, checksum;
     size_t n_read;
 
+    // hexdump("all data", data, size);
+
     serial_init(&ser, (byte_t *)data, size, 1);
 
     if (!serial_read(&ser, &data_len, sizeof(data_len))) {
@@ -88,6 +90,8 @@ vmess_decode_data(vmess_config_t *config, const vmess_auth_t *auth,
         return 0;
     }
 
+    // hexdump("undecoded", data_buf, data_len);
+
     data_dec = crypto_aes_128_cfb_dec(auth->key, auth->iv, data_buf, data_len, NULL);
     free(data_buf);
 
@@ -95,6 +99,10 @@ vmess_decode_data(vmess_config_t *config, const vmess_auth_t *auth,
 
     checksum_expect = *(uint32_t *)data_dec;
     checksum = be32(crypto_fnv1a(data_dec + 4, data_len - 4));
+
+    // printf("checksum %d %d %ld\n", checksum_expect, checksum, data_len);
+
+    // hexdump("decoded", data_dec + 4, data_len - 4);
 
     if (checksum != checksum_expect) {
         serial_destroy(&ser);

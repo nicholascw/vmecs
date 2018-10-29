@@ -10,15 +10,23 @@
 #include <fcntl.h>
 
 #include "pub/type.h"
+#include "pub/time.h"
+
+#define SOCKET_NON_BLOCK_INTERVAL 10
 
 typedef int socket_t;
 
-// read/write with retry
+// read/write with retry on EINTR or EAGAIN
 INLINE ssize_t read_r(int fd, byte_t *buf, size_t size)
 {
     ssize_t ret;
-    while ((ret = read(fd, buf, size)) == -1 && errno == EINTR)
-        perror("read");
+    
+    while ((ret = read(fd, buf, size)) == -1) {
+        if (errno == EINTR) perror("read");
+        else if (errno == EAGAIN) continue;
+        else break;
+    }
+
     return ret;
 }
 
@@ -37,6 +45,15 @@ INLINE int socket_set_block(int fd, bool blocking)
    if (flags == -1) return -1;
    flags = blocking ? (flags & ~O_NONBLOCK) : (flags | O_NONBLOCK);
    return fcntl(fd, F_SETFL, flags);
+}
+
+INLINE int
+socket_set_timeout(int fd, int sec)
+{
+    struct timespec tv;
+    tv.tv_sec = sec;
+    tv.tv_nsec = 0;
+    return setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 }
 
 #endif

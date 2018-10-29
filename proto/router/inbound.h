@@ -7,13 +7,15 @@
 
 // an inbound acts like a server
 
-#define INBOUND_HEADER \
+#define TCP_INBOUND_HEADER \
     tcp_inbound_server_t server_func;
+
+struct tcp_inbound_t_tag;
 
 typedef tcp_socket_t *(*tcp_inbound_server_t)(struct tcp_inbound_t_tag *inbound);
 
 typedef struct tcp_inbound_t_tag {
-    INBOUND_HEADER
+    TCP_INBOUND_HEADER
 } tcp_inbound_t;
 
 INLINE tcp_socket_t *

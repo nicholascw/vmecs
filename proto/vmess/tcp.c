@@ -67,16 +67,18 @@ _vmess_tcp_socket_listen(tcp_socket_t *_sock, int backlog)
 }
 
 static void
-_vmess_tcp_socket_free(vmess_tcp_socket_t *sock)
+_vmess_tcp_socket_free(tcp_socket_t *_sock)
 {
-    if (sock) {
-        vbuffer_free(sock->read_buf);
-        vbuffer_free(sock->write_buf);
-        vmess_config_free(sock->config);
-        vmess_serial_free(sock->vser);
-        target_id_free(sock->addr.proxy);
-        free(sock);
-    }
+    vmess_tcp_socket_t *sock = (vmess_tcp_socket_t *)_sock;
+
+    vbuffer_free(sock->read_buf);
+    vbuffer_free(sock->write_buf);
+    vmess_config_free(sock->config);
+    vmess_serial_free(sock->vser);
+    target_id_free(sock->addr.proxy);
+    pthread_mutex_destroy(&sock->write_mut);
+    
+    free(sock);
 }
 
 static int
@@ -84,19 +86,36 @@ _vmess_tcp_socket_close(tcp_socket_t *_sock)
 {
     vmess_tcp_socket_t *sock = (vmess_tcp_socket_t *)_sock;
 
-    vbuffer_close(sock->read_buf);
-    vbuffer_close(sock->write_buf);
+    // send closind packet
 
-    if (close(sock->sock)) {
-        perror("close");
-    }
+    size_t size;
+    const byte_t *trunk = vmess_serial_end(&size);
+
+    vbuffer_close(sock->write_buf);
+    vbuffer_close(sock->read_buf);
+
+    // printf("buffer closed\n");
+
+    vbuffer_drain(sock->write_buf);
+
+    // printf("buffer drained\n");
+
+    // write mutex is here to ensure all data is written
+    // before the end chunk is sent
+    pthread_mutex_lock(&sock->write_mut);
+    write_r(sock->sock, trunk, size);
+    pthread_mutex_unlock(&sock->write_mut);
+
+    // printf("end written\n");
 
     if (sock->started) {
         pthread_join(sock->reader, NULL);
         pthread_join(sock->writer, NULL);
     }
 
-    _vmess_tcp_socket_free(sock);
+    if (close(sock->sock)) {
+        perror("close");
+    }
 
     return 0;
 }
@@ -120,14 +139,16 @@ _vmess_tcp_socket_handshake(vmess_tcp_socket_t *sock, target_id_t *target)
         // server
         // read request header
         switch (rbuffer_read(rbuf, sock->sock, vmess_request_decoder,
-                         VMESS_DECODER_CTX(sock->config, &sock->auth), &req)) {
+                             VMESS_DECODER_CTX(sock->config, &sock->auth), &req)) {
             case RBUFFER_SUCCESS:
                 break;
 
             case RBUFFER_ERROR:
+                printf("header decoding failed, rejecting connection\n");
                 goto ERROR1;
 
             case RBUFFER_INCOMPLETE:
+                printf("incomplete header, rejecting connection\n");
                 goto ERROR1;
         }
 
@@ -144,7 +165,7 @@ _vmess_tcp_socket_handshake(vmess_tcp_socket_t *sock, target_id_t *target)
             free(trunk);
         }
 
-        print_target(req.target);
+        // print_target(req.target);
 
         vmess_tcp_socket_set_target(sock, req.target);
         vmess_request_destroy(&req);
@@ -169,7 +190,7 @@ _vmess_tcp_socket_handshake(vmess_tcp_socket_t *sock, target_id_t *target)
 
         // read response header
         switch (rbuffer_read(rbuf, sock->sock, vmess_response_decoder,
-                            VMESS_DECODER_CTX(sock->config, &sock->auth), &resp)) {
+                             VMESS_DECODER_CTX(sock->config, &sock->auth), &resp)) {
             case RBUFFER_SUCCESS:
                 break;
 
@@ -200,24 +221,22 @@ _vmess_tcp_socket_reader(void *arg)
     vmess_tcp_socket_t *sock = arg;
     rbuffer_t *rbuf = rbuffer_new(RBUF_SIZE);
     data_trunk_t trunk;
-    bool closed = false;
+    bool end = false;
 
     // read from remote and prepare read_buf
 
     // printf("reader %p\n", sock);
 
-    socket_set_block(sock->sock, false);
-
-    while (!closed) {
+    while (!end) {
         switch (rbuffer_read(rbuf, sock->sock, vmess_data_decoder,
                              VMESS_DECODER_CTX(sock->config, &sock->auth), &trunk)) {
             case RBUFFER_SUCCESS:
-                hexdump("data read", trunk.data, trunk.size);
+                // hexdump("data read", trunk.data, trunk.size);
 
                 if (trunk.size == 0) {
                     // remote sent end signal
                     // no more read is needed
-                    closed = true;
+                    end = true;
                 } else {
                     vbuffer_write(sock->read_buf, trunk.data, trunk.size);
                 }
@@ -226,15 +245,20 @@ _vmess_tcp_socket_reader(void *arg)
                 break;
 
             case RBUFFER_ERROR:
+                printf("decoding failed exiting\n");
+
             case RBUFFER_INCOMPLETE:
-                closed = true;
+                end = true;
                 break;
         }
     }
 
-    rbuffer_free(rbuf);
+    printf("reader exited %p\n", (void *)sock);
 
-    // printf("reader exited %p\n", sock);
+    rbuffer_free(rbuf);
+    // tcp_socket_close(sock);
+    vbuffer_close(sock->read_buf);
+    vbuffer_close(sock->write_buf);
 
     return NULL;
 }
@@ -249,23 +273,42 @@ _vmess_tcp_socket_writer(void *arg)
     byte_t *trunk;
     byte_t buf[RBUF_SIZE];
     size_t size;
+    bool end = false;
 
-    bool closed = false;
+    while (!end) {
+        // printf("writer waiting for lock\n");
+        pthread_mutex_lock(&sock->write_mut);
+        // printf("writer got lock\n");
 
-    while (!closed && (size = vbuffer_read(sock->write_buf, buf, RBUF_SIZE))) {
+        size = vbuffer_read(sock->write_buf, buf, RBUF_SIZE);
+
+        // printf("writer got new data\n");
+        if (!size) {
+            pthread_mutex_unlock(&sock->write_mut);
+            break;
+        }
+
         vmess_serial_write(sock->vser, buf, size);
         
         // flush all
         while ((trunk = vmess_serial_digest(sock->vser, &size))) {
+            // hexdump("digested", trunk + size - 6, 6);
+
+            // hexdump("writting", trunk, size);
+
             if (write_r(sock->sock, trunk, size) == -1) {
-                closed = true;
+                end = true;
             }
 
             free(trunk);
         }
+
+        pthread_mutex_unlock(&sock->write_mut);
+
+        // printf("chunk written\n");
     }
 
-    // printf("writer exited %p\n", sock);
+    printf("writer exited %p\n", (void *)sock);
 
     // vbuffer closed
 
@@ -285,7 +328,6 @@ _vmess_tcp_socket_accept(tcp_socket_t *_sock)
     client = accept(sock->sock, NULL, NULL);
 
     if (client == -1) {
-        perror("accept");
         return NULL;
     }
 
@@ -293,7 +335,8 @@ _vmess_tcp_socket_accept(tcp_socket_t *_sock)
     ret->server = true;
     
     if (!_vmess_tcp_socket_handshake(ret, NULL)) {
-        _vmess_tcp_socket_close((tcp_socket_t *)ret);
+        tcp_socket_close((tcp_socket_t *)ret);
+        tcp_socket_free((tcp_socket_t *)ret);
         return NULL;
     }
 
@@ -340,16 +383,6 @@ _vmess_tcp_socket_connect(tcp_socket_t *_sock, const char *node, const char *por
     sock->started = true;
 
     return 0;
-
-    // create universal auth
-    // start two threads
-    // handshake with the remote(send the request header and wait for response header)
-    // 1. read from the write_buf, encode, and send it to server
-    //    if write_buf returned 0, exit thread(local closed)
-    //    if sending falied, exit thread(remote closed)
-    // 2. read from the server, decode, and push back to the read_buf
-    //    if read server returned 0, exit thread(remote closed)
-    //    if remote returned end packet, exit thread(remote closed)
 }
 
 static target_id_t *
@@ -370,10 +403,12 @@ _vmess_tcp_socket_new_fd(vmess_config_t *config, int fd)
 
     ret->server = false; // undetermined at this point
     ret->started = false; // if the threads have been started
-
+    
     ret->config = vmess_config_copy(config);
     ret->addr.proxy = NULL;
     ret->vser = NULL;
+
+    pthread_mutex_init(&ret->write_mut, NULL);
 
     ret->read_func = _vmess_tcp_socket_read;
     ret->write_func = _vmess_tcp_socket_write;
@@ -382,6 +417,7 @@ _vmess_tcp_socket_new_fd(vmess_config_t *config, int fd)
     ret->accept_func = _vmess_tcp_socket_accept;
     ret->connect_func = _vmess_tcp_socket_connect;
     ret->close_func = _vmess_tcp_socket_close;
+    ret->free_func = _vmess_tcp_socket_free;
     ret->target_func = _vmess_tcp_socket_target;
 
     ret->read_buf = vbuffer_new(TCP_DEFAULT_BUF);
@@ -395,5 +431,8 @@ vmess_tcp_socket_new(vmess_config_t *config)
 {
     int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     ASSERT(fd != -1, "failed to create socket");
+
+    socket_set_timeout(fd, 1);
+
     return _vmess_tcp_socket_new_fd(config, fd);
 }

@@ -86,17 +86,20 @@ _native_tcp_socket_connect(tcp_socket_t *_sock, const char *node, const char *po
     }
 }
 
+#include <signal.h>
+
 static int
 _native_tcp_socket_close(tcp_socket_t *_sock)
 {
     native_tcp_socket_t *sock = (native_tcp_socket_t *)_sock;
-    
-    if (close(sock->sock)) {
-        return -1;
-    } else {
-        free(sock);
-        return 0;
-    }
+    return close(sock->sock);
+}
+
+static void
+_native_tcp_socket_free(tcp_socket_t *_sock)
+{
+    native_tcp_socket_t *sock = (native_tcp_socket_t *)_sock;
+    free(sock);
 }
 
 static native_tcp_socket_t *
@@ -112,6 +115,7 @@ _native_tcp_socket_new_fd(int fd)
     ret->accept_func = _native_tcp_socket_accept;
     ret->connect_func = _native_tcp_socket_connect;
     ret->close_func = _native_tcp_socket_close;
+    ret->free_func = _native_tcp_socket_free;
     ret->target_func = NULL;
 
     ret->sock = fd;
@@ -124,5 +128,8 @@ native_tcp_socket_new()
 {
     int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     ASSERT(fd != -1, "failed to create socket");
+    
+    socket_set_timeout(fd, 1);
+    
     return _native_tcp_socket_new_fd(fd);
 }

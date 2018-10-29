@@ -44,29 +44,14 @@ target_id_t *target_id_parse(const char *node, const char *service)
     return id;
 }
 
-struct addrinfo *target_id_resolve(target_id_t *target)
+struct addrinfo *target_id_resolve(const target_id_t *target)
 {
-    char buf[256 + 1];
-    char port[8];
+    char buf[TARGET_ID_MAX_DOMAIN + 1];
+    char port[TARGET_ID_MAX_PORT + 1];
     struct addrinfo hints, *res;
 
-    switch (target->addr_type) {
-        case ADDR_TYPE_DOMAIN:
-            sprintf(buf, "%s", target->addr.domain);
-            break;
-
-        case ADDR_TYPE_IPV4:
-            sprintf(buf, "%d.%d.%d.%d",
-                    target->addr.ipv4[0], target->addr.ipv4[1],
-                    target->addr.ipv4[2], target->addr.ipv4[3]);
-            break;
-
-        case ADDR_TYPE_IPV6:
-            ASSERT(0, "not implemented");
-            break;
-    }
-
-    sprintf(port, "%d", target->port);
+    target_id_node(target, buf);
+    target_id_port(target, port);
 
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_UNSPEC;

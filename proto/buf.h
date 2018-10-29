@@ -33,6 +33,7 @@ rbuffer_free(rbuffer_t *buf);
 typedef struct {
     pthread_mutex_t mut;
     pthread_cond_t cond;
+    pthread_cond_t drain;
 
     byte_t *buf;
     size_t w_idx;
@@ -43,6 +44,9 @@ typedef struct {
 
 vbuffer_t *
 vbuffer_new(size_t init);
+
+void
+vbuffer_drain(vbuffer_t *vbuf);
 
 // may block if no data is ready
 size_t
