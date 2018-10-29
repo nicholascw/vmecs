@@ -17,7 +17,7 @@ int main()
     
     byte_t data[] = 
         "GET / HTTP/1.1\r\n"
-        "Host: www.bbc.com\r\n"
+        "Host: www.google.com\r\n"
         "Connection: close\r\n"
         "\r\n";
 
@@ -34,7 +34,7 @@ int main()
     vmess_tcp_socket_set_proxy(sock, proxy);
     vmess_tcp_socket_auth(sock, time(NULL));
 
-    while (tcp_socket_connect(sock, "www.bbc.com", "80")) {
+    while (tcp_socket_connect(sock, "www.google.com", "80")) {
         sleep(1);
     }
 
