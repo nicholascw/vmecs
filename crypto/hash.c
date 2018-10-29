@@ -29,6 +29,8 @@ int crypto_hmac_md5(const byte_t *key, size_t key_size,
     return 0;
 }
 
+#if 0
+
 int _crypto_evp_md(const EVP_MD *evp, const byte_t *data, size_t data_size, byte_t *hash)
 {
     EVP_MD_CTX *ctx = EVP_MD_CTX_new();
@@ -56,6 +58,8 @@ int crypto_shake128(const byte_t *data, size_t data_size, hash128_t hash)
 {
     return _crypto_evp_md(EVP_shake128(), data, data_size, hash);
 }
+
+#endif
 
 uint32_t crypto_fnv1a(const byte_t *data, size_t data_size)
 {

@@ -115,7 +115,7 @@ void test_crypto()
     free(ctext);
 
     // crypto_md5("hi", 2, hash);
-    crypto_shake128((byte_t *)"hi", 2, hash);
+    // crypto_shake128((byte_t *)"hi", 2, hash);
 
     print_hash128(hash);
 }
