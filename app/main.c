@@ -78,14 +78,14 @@ void test_vmess_request()
     // header = vmess_serial_digest(vser, &size);
     // hexdump("header", header, size);
     // size = vmess_decode_request(config, &auth, &req_read, header, size);
-    // printf("read: %lu\n", size);
+    // TRACE("read: %lu", size);
     // free(header);
 
     // ////////////// decode/encode data
     // trunk = vmess_serial_digest(vser, &size);
     // hexdump("trunk", trunk, size);
     // size = vmess_decode_data(config, &auth, trunk, size, &buf, &buf_size);
-    // printf("read: %lu, data size: %lu\n", size, buf_size);
+    // TRACE("read: %lu, data size: %lu", size, buf_size);
     // hexdump("data", buf, buf_size);
     // free(buf);
     // free(trunk);

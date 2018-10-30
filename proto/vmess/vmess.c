@@ -157,7 +157,7 @@ byte_t *vmess_serial_digest(vmess_serial_t *vser, size_t *size_p)
             *((uint32_t *)(trunk + 2)) = be32(crypto_fnv1a(data, trunk_size));
             memcpy(trunk + 6, data, trunk_size);
 
-            // printf("checksum %d\n", *((uint32_t *)(trunk + 2)));
+            // TRACE("checksum %d", *((uint32_t *)(trunk + 2)));
 
             // encrypt
             enc_data = crypto_aes_128_cfb_enc(vser->auth.key, vser->auth.iv, trunk + 2, trunk_size + 4, &out_size);

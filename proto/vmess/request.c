@@ -91,7 +91,7 @@ vmess_serial_request(vmess_serial_t *vser,
     cmd_size = serial_size(&ser) - sizeof(valid_code);
 
     // hexdump("not encoded", cmd, cmd_size);
-    // printf("checksum: %d\n", checksum);
+    // TRACE("checksum: %d", checksum);
 
     enc_cmd = crypto_aes_128_cfb_enc(vser->auth.key, vser->auth.iv, cmd, cmd_size, &out_size);
     memcpy(cmd, enc_cmd, cmd_size);

@@ -94,11 +94,11 @@ _vmess_tcp_socket_close(tcp_socket_t *_sock)
     vbuffer_close(sock->write_buf);
     vbuffer_close(sock->read_buf);
 
-    // printf("buffer closed\n");
+    // TRACE("buffer closed");
 
     vbuffer_drain(sock->write_buf);
 
-    // printf("buffer drained\n");
+    // TRACE("buffer drained");
 
     // write mutex is here to ensure all data is written
     // before the end chunk is sent
@@ -106,7 +106,7 @@ _vmess_tcp_socket_close(tcp_socket_t *_sock)
     write_r(sock->sock, trunk, size);
     pthread_mutex_unlock(&sock->write_mut);
 
-    // printf("end written\n");
+    // TRACE("end written");
 
     if (sock->started) {
         pthread_join(sock->reader, NULL);
@@ -144,11 +144,11 @@ _vmess_tcp_socket_handshake(vmess_tcp_socket_t *sock, target_id_t *target)
                 break;
 
             case RBUFFER_ERROR:
-                printf("header decoding failed, rejecting connection\n");
+                TRACE("header decoding failed, rejecting connection");
                 goto ERROR1;
 
             case RBUFFER_INCOMPLETE:
-                printf("incomplete header, rejecting connection\n");
+                TRACE("incomplete header, rejecting connection");
                 goto ERROR1;
         }
 
@@ -225,7 +225,7 @@ _vmess_tcp_socket_reader(void *arg)
 
     // read from remote and prepare read_buf
 
-    // printf("reader %p\n", sock);
+    // TRACE("reader %p", sock);
 
     while (!end) {
         switch (rbuffer_read(rbuf, sock->sock, vmess_data_decoder,
@@ -245,7 +245,7 @@ _vmess_tcp_socket_reader(void *arg)
                 break;
 
             case RBUFFER_ERROR:
-                printf("decoding failed exiting\n");
+                TRACE("decoding failed exiting");
 
             case RBUFFER_INCOMPLETE:
                 end = true;
@@ -253,7 +253,7 @@ _vmess_tcp_socket_reader(void *arg)
         }
     }
 
-    printf("reader exited %p\n", (void *)sock);
+    TRACE("reader exited %p", (void *)sock);
 
     rbuffer_free(rbuf);
     // tcp_socket_close(sock);
@@ -276,13 +276,13 @@ _vmess_tcp_socket_writer(void *arg)
     bool end = false;
 
     while (!end) {
-        // printf("writer waiting for lock\n");
+        // TRACE("writer waiting for lock");
         pthread_mutex_lock(&sock->write_mut);
-        // printf("writer got lock\n");
+        // TRACE("writer got lock");
 
         size = vbuffer_read(sock->write_buf, buf, RBUF_SIZE);
 
-        // printf("writer got new data\n");
+        // TRACE("writer got new data");
         if (!size) {
             pthread_mutex_unlock(&sock->write_mut);
             break;
@@ -305,10 +305,10 @@ _vmess_tcp_socket_writer(void *arg)
 
         pthread_mutex_unlock(&sock->write_mut);
 
-        // printf("chunk written\n");
+        // TRACE("chunk written");
     }
 
-    printf("writer exited %p\n", (void *)sock);
+    TRACE("writer exited %p", (void *)sock);
 
     // vbuffer closed
 

@@ -16,7 +16,7 @@ ssize_t _crypto_evp_cipher(const EVP_CIPHER *evp,
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     int len1, len2;
 
-    // printf("%d\n", EVP_CIPHER_block_size(evp));
+    // TRACE("%d", EVP_CIPHER_block_size(evp));
 
 #define CLEAR_EXIT(code) \
     do { \

@@ -36,12 +36,12 @@ void server()
     client = tcp_socket_accept(sock);
     ASSERT(client, "server accept failed");
 
-    printf("accepted client %p\n", client);
+    TRACE("accepted client %p", client);
 
     tcp_socket_read(client, buf, 1);
 
     buf[1] = 0;
-    printf("server read: %s\n", buf);
+    TRACE("server read: %s", buf);
 
     tcp_socket_write(client, "y", 1);
 
@@ -49,12 +49,12 @@ void server()
 
     sleep(1);
 
-    printf("closing server\n");
+    TRACE("closing server");
     tcp_socket_close(client);
     tcp_socket_close(sock);
     tcp_socket_free(client);
     tcp_socket_free(sock);
-    printf("server closed\n");
+    TRACE("server closed");
 
     // vmess_config_free(config);
 }
@@ -80,12 +80,12 @@ void client()
     tcp_socket_read(sock, buf, 1);
 
     buf[1] = 0;
-    printf("client read: %s\n", buf);
+    TRACE("client read: %s", buf);
 
-    printf("closing client\n");
+    TRACE("closing client");
     tcp_socket_close(sock);
     tcp_socket_free(sock);
-    printf("client closed\n");
+    TRACE("client closed");
 
     // vmess_config_free(config);
     // target_id_free(target);

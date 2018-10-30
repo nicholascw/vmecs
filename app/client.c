@@ -44,7 +44,7 @@ int main()
         hexdump("client received", buf, size);
 
         if (size >= 4 && memcmp(buf + size - 4, "\r\n\r\n", 4) == 0) {
-            printf("break!\n");
+            TRACE("break!");
             break;
         }
     }
@@ -55,7 +55,7 @@ int main()
     vmess_config_free(config);
     target_id_free(proxy);
 
-    printf("client end\n");
+    TRACE("client end");
 
     return 0;
 }

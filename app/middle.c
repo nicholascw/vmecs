@@ -21,16 +21,27 @@ int main()
     vmess_tcp_inbound_t *inbound;
     vmess_tcp_outbound_t *outbound;
 
+    tcp_router_config_t *router_conf;
+
     memset(user_id, 0, sizeof(user_id));
 
     config = vmess_config_new(user_id);
     local = target_id_new_ipv4((byte_t []) { 127, 0, 0, 1 }, 3131);
     proxy = target_id_new_ipv4((byte_t []) { 127, 0, 0, 1 }, 3132);
 
+    router_conf = tcp_router_config_new_default();
     inbound = vmess_tcp_inbound_new(config, local);
     outbound = vmess_tcp_outbound_new(config, proxy);
 
-    tcp_router((tcp_inbound_t *)inbound, (tcp_outbound_t *)outbound);
+    tcp_router(router_conf, (tcp_inbound_t *)inbound, (tcp_outbound_t *)outbound);
+
+    vmess_config_free(config);
+    target_id_free(local);
+    target_id_free(proxy);
+    tcp_router_config_free(router_conf);
+
+    vmess_tcp_inbound_free(inbound);
+    vmess_tcp_outbound_free(outbound);
 
     return 0;
 }

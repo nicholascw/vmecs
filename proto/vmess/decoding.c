@@ -100,7 +100,7 @@ vmess_decode_data(vmess_config_t *config, const vmess_auth_t *auth,
     checksum_expect = *(uint32_t *)data_dec;
     checksum = be32(crypto_fnv1a(data_dec + 4, data_len - 4));
 
-    // printf("checksum %d %d %ld\n", checksum_expect, checksum, data_len);
+    // TRACE("checksum %d %d %ld", checksum_expect, checksum, data_len);
 
     // hexdump("decoded", data_dec + 4, data_len - 4);
 

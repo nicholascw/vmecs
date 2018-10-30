@@ -59,9 +59,9 @@ rbuffer_read(rbuffer_t *buf, int fd, decoder_t decoder, void *context, void *res
             should_read = false;
         }
         
-        // printf("decoding trunk of size %lu\n", buf->w_idx);
+        // TRACE("decoding trunk of size %lu", buf->w_idx);
         n_decoded = decoder(context, result, buf->buf, buf->w_idx);
-        // printf("decoded: %ld\n", n_decoded);
+        // TRACE("decoded: %ld", n_decoded);
 
         if (n_decoded == 0) {
             should_read = true;
@@ -76,7 +76,7 @@ rbuffer_read(rbuffer_t *buf, int fd, decoder_t decoder, void *context, void *res
 
             // if (buf->w_idx) {
             //     hexdump("rest", buf->buf, buf->w_idx);
-            // } else printf("no rest!!!\n");
+            // } else TRACE("no rest");
 
             return RBUFFER_SUCCESS;
         }

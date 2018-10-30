@@ -8,8 +8,15 @@
     if (!(cond)) { \
         fprintf(stderr, "%s: line %d: `%s` failed: ", __FILE__, __LINE__, #cond); \
         fprintf(stderr, __VA_ARGS__); \
-        puts(""); \
+        fprintf(stderr, "\n"); \
         abort(); \
     }
+
+#define TRACE(...) \
+    do{ \
+        fprintf(stderr, "%s: ", __func__); \
+        fprintf(stderr, __VA_ARGS__); \
+        fprintf(stderr, "\n"); \
+    } while (0)
 
 #endif
