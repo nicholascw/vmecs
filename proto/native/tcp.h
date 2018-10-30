@@ -11,4 +11,7 @@ typedef struct {
 native_tcp_socket_t *
 native_tcp_socket_new();
 
+native_tcp_socket_t *
+native_tcp_socket_new_fd(int fd);
+
 #endif

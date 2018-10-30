@@ -135,7 +135,7 @@ _vmess_tcp_socket_handshake(vmess_tcp_socket_t *sock, target_id_t *target)
     rbuf = rbuffer_new(RBUF_SIZE);
 
     // handshake first
-    if (sock->server) {
+    if (!target) {
         // server
         // read request header
         switch (rbuffer_read(rbuf, sock->sock, vmess_request_decoder,
@@ -332,7 +332,6 @@ _vmess_tcp_socket_accept(tcp_socket_t *_sock)
     }
 
     ret = _vmess_tcp_socket_new_fd(sock->config, client);
-    ret->server = true;
     
     if (!_vmess_tcp_socket_handshake(ret, NULL)) {
         tcp_socket_close((tcp_socket_t *)ret);
@@ -367,7 +366,6 @@ _vmess_tcp_socket_connect(tcp_socket_t *_sock, const char *node, const char *por
 
     freeaddrinfo(list);
 
-    sock->server = false;
     target = target_id_parse(node, port);
 
     if (!_vmess_tcp_socket_handshake(sock, target)) {
@@ -401,11 +399,11 @@ _vmess_tcp_socket_new_fd(vmess_config_t *config, int fd)
 
     ret->sock = fd;
 
-    ret->server = false; // undetermined at this point
     ret->started = false; // if the threads have been started
     
     ret->config = vmess_config_copy(config);
     ret->addr.proxy = NULL;
+    ret->addr.target = NULL;
     ret->vser = NULL;
 
     pthread_mutex_init(&ret->write_mut, NULL);

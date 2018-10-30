@@ -28,7 +28,6 @@ typedef struct {
     pthread_mutex_t write_mut;
 
     int sock;
-    bool server;
     bool started;
 } vmess_tcp_socket_t;
 

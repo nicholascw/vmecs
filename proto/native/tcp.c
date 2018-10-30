@@ -47,9 +47,6 @@ _native_tcp_socket_listen(tcp_socket_t *_sock, int backlog)
     return listen(sock->sock, backlog);
 }
 
-static native_tcp_socket_t *
-_native_tcp_socket_new_fd(int fd);
-
 static tcp_socket_t *
 _native_tcp_socket_accept(tcp_socket_t *_sock)
 {
@@ -59,7 +56,7 @@ _native_tcp_socket_accept(tcp_socket_t *_sock)
     fd = accept(sock->sock, NULL, NULL);
     if (fd == -1) return NULL;
 
-    return (tcp_socket_t *)_native_tcp_socket_new_fd(fd);
+    return (tcp_socket_t *)native_tcp_socket_new_fd(fd);
 }
 
 static int
@@ -74,6 +71,7 @@ _native_tcp_socket_connect(tcp_socket_t *_sock, const char *node, const char *po
     hints.ai_family = AF_INET;
 
     if (getaddrinfo(node, port, &hints, &list)) {
+        freeaddrinfo(list);
         return -1;
     }
 
@@ -85,8 +83,6 @@ _native_tcp_socket_connect(tcp_socket_t *_sock, const char *node, const char *po
         return 0;
     }
 }
-
-#include <signal.h>
 
 static int
 _native_tcp_socket_close(tcp_socket_t *_sock)
@@ -102,8 +98,8 @@ _native_tcp_socket_free(tcp_socket_t *_sock)
     free(sock);
 }
 
-static native_tcp_socket_t *
-_native_tcp_socket_new_fd(int fd)
+native_tcp_socket_t *
+native_tcp_socket_new_fd(int fd)
 {
     native_tcp_socket_t *ret = malloc(sizeof(*ret));
     ASSERT(ret, "out of mem");
@@ -131,5 +127,5 @@ native_tcp_socket_new()
     
     socket_set_timeout(fd, 1);
     
-    return _native_tcp_socket_new_fd(fd);
+    return native_tcp_socket_new_fd(fd);
 }

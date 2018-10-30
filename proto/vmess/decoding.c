@@ -232,7 +232,7 @@ vmess_decode_request(vmess_config_t *config,
             target = target_id_new_ipv6(ipv6, port);
             break;
 
-        default: DECODE_FAIL(0);
+        default: DECODE_FAIL(-1);
     }
 
     // read off p bytes of empty value
