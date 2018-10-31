@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.0)
 project(vmecs)
 
 # set basic compile flags
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Wall -pedantic -Wno-address -Wno-unused-function")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -fPIC -Wall -pedantic -Wno-address -Wno-unused-function")
 
 # add common headers
 include_directories(${PROJECT_SOURCE_DIR})

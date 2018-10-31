@@ -36,6 +36,10 @@ socks5_tcp_socket_new();
 socks5_tcp_socket_t *
 socks5_tcp_socket_new_fd(int fd);
 
+// generate a normal socket and free the original socket
+int
+socks5_to_socket(socks5_tcp_socket_t *sock);
+
 /*
 
 hook protocol

@@ -13,8 +13,8 @@
 #include "proto/common.h"
 #include "vmess.h"
 
-#define AES_128_CFB_TRUNK 1024 // (((uint16_t)~0) - 1 - 4) // 2^16 - 1 - 4(checksum)
-#define NO_ENC_TRUNK 1024 // (((uint16_t)~0) - 1) // 2^16 - 1
+#define AES_128_CFB_TRUNK 8192 // (((uint16_t)~0) - 1 - 4) // 2^16 - 1 - 4(checksum)
+#define NO_ENC_TRUNK 8192 // (((uint16_t)~0) - 1) // 2^16 - 1
 
 void vmess_gen_key(vmess_config_t *config, hash128_t key)
 {

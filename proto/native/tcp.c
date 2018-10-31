@@ -64,14 +64,13 @@ _native_tcp_socket_connect(tcp_socket_t *_sock, const char *node, const char *po
 {
     native_tcp_socket_t *sock = (native_tcp_socket_t *)_sock;
 
-    struct addrinfo hints, *list;
+    struct addrinfo hints, *list = NULL;
 
     memset(&hints, 0, sizeof(hints));
     hints.ai_flags = AI_PASSIVE;
     hints.ai_family = AF_INET;
 
     if (getaddrinfo(node, port, &hints, &list)) {
-        freeaddrinfo(list);
         return -1;
     }
 

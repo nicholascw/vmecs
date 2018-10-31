@@ -293,3 +293,11 @@ socks5_tcp_socket_new()
     
     return socks5_tcp_socket_new_fd(fd);
 }
+
+int
+socks5_to_socket(socks5_tcp_socket_t *sock)
+{
+    int fd = sock->sock;
+    tcp_socket_free(sock);
+    return fd;
+}

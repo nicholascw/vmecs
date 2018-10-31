@@ -5,8 +5,8 @@
 
 #include "tcp.h"
 
-#define DEFAULT_BACKLOG 10
-#define DEFAULT_BUF 1024
+#define DEFAULT_BACKLOG 128
+#define DEFAULT_BUFFER (8 * 1024)
 
 tcp_router_config_t *
 tcp_router_config_new_default()
@@ -48,19 +48,23 @@ static void *
 _tcp_router_reader(void *arg)
 {
     tcp_router_job_t *job = arg;
-    byte_t buf[DEFAULT_BUF];
+    byte_t *buf;
     ssize_t n_read;
     ssize_t n_write;
 
     // read out_sock
     // write in_sock
 
+    buf = malloc(DEFAULT_BUFFER);
+    ASSERT(buf, "out of mem");
+
     while ((n_read = tcp_socket_read(job->out_sock, buf, sizeof(buf))) &&
            n_read != -1) {
         // TRACE("reader got data");
         if ((n_write = tcp_socket_write(job->in_sock, buf, n_read)) &&
             n_write != -1) {
-            hexdump("outbound -> inbound", buf, n_read);
+            TRACE("inbound <- outbound");
+            // hexdump("outbound -> inbound", buf, n_read);
         } else {
             // write error
             break;
@@ -71,6 +75,8 @@ _tcp_router_reader(void *arg)
     tcp_socket_close(job->in_sock);
     TRACE("router reader closed"); 
 
+    free(buf);
+
     return NULL;
 }
 
@@ -78,19 +84,23 @@ static void *
 _tcp_router_writer(void *arg)
 {
     tcp_router_job_t *job = arg;
-    byte_t buf[DEFAULT_BUF];
+    byte_t *buf;
     ssize_t n_read;
     ssize_t n_write;
 
     // read in_sock
     // write out_sock
 
+    buf = malloc(DEFAULT_BUFFER);
+    ASSERT(buf, "out of mem");
+
     while ((n_read = tcp_socket_read(job->in_sock, buf, sizeof(buf))) &&
            n_read != -1) {
         // TRACE("writer got data");
         if ((n_write = tcp_socket_write(job->out_sock, buf, n_read)) &&
             n_write != -1) {
-            hexdump("inbound -> outbound", buf, n_read);
+            TRACE("inbound -> outbound");
+            // hexdump("inbound -> outbound", buf, n_read);
         } else {
             // write error
             break;
@@ -100,6 +110,8 @@ _tcp_router_writer(void *arg)
     TRACE("router writer closing");
     tcp_socket_close(job->out_sock);
     TRACE("router writer closed");
+
+    free(buf);
     
     return NULL;
 }

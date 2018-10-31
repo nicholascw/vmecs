@@ -1,0 +1,149 @@
+HOOK(connect, int, (int fd, const struct sockaddr *addr, socklen_t addrlen), {
+    int socktype;
+    socklen_t optlen;
+
+    uint32_t ip;
+    uint16_t port;
+
+    socks5_tcp_socket_t *sock;
+
+    target_id_t *proxy;
+    target_id_t *target;
+
+    optlen = sizeof(socktype);
+    getsockopt(fd, SOL_SOCKET, SO_TYPE, &socktype, &optlen);
+
+    if (!proxy_on ||
+        addr->sa_family != AF_INET ||
+        socktype != SOCK_STREAM) {
+        return REAL_FUNC(connect)(fd, addr, addrlen);
+    }
+
+    ip = ((struct sockaddr_in *)addr)->sin_addr.s_addr;
+    port = from_be16(((struct sockaddr_in *)addr)->sin_port);
+
+    proxy_on = false;
+
+    proxy = target_id_new_ipv4((byte_t []) { 127, 0, 0, 1 }, 3133);
+    target = target_id_new_ipv4((byte_t *)&ip, port);
+    sock = socks5_tcp_socket_new();
+
+    socks5_tcp_socket_set_proxy(sock, proxy);
+
+    if (tcp_socket_connect_target(sock, target)) {
+        perror("failed to connect to proxy");
+        TRACE("fallback to old connect");
+
+        proxy_on = true;
+
+        tcp_socket_close(sock);
+        tcp_socket_free(sock);
+
+        target_id_free(proxy);
+        target_id_free(target);
+
+        return REAL_FUNC(connect)(fd, addr, addrlen);
+    }
+
+    TRACE("connected");
+
+    proxy_on = true;
+
+    target_id_free(proxy);
+    target_id_free(target);
+
+    // substitute the original fd
+    dup2(socks5_to_socket(sock), fd);
+
+    return 0;
+})
+
+// HOOK(getaddrinfo, int, (const char *node, const char *serv, const struct addrinfo *hints, struct addrinfo **res), {
+//     // return REAL_FUNC(getaddrinfo)(node, serv, hints, res);
+
+//     if (!proxy_on) {
+//         return REAL_FUNC(getaddrinfo)(node, serv, hints, res);
+//     }
+
+//     TRACE("getaddrinfo hooked %s %s", node, serv);
+
+//     proxy_on = false;
+//     int err = REAL_FUNC(getaddrinfo)(node, serv, hints, res);
+//     proxy_on = true;
+
+//     if (err) {
+//         TRACE("getaddrinfo error %d", err);
+//         return err;
+//     }
+
+//     // TRACE("%d", (*res)->ai_addr->sa_family);
+
+//     // if ((*res)->ai_addr->sa_family == AF_INET) {
+//     //     domain_t *new_addr = malloc(sizeof(domain_t));
+//     //     memcpy(new_addr, *res, sizeof(domain_t));
+//     //     new_addr->domain = strdup(node);
+//     //     TRACE("stored %s", new_addr->domain);
+//     //     (*res)->ai_addr = new_addr;
+//     // }
+
+//     return 0;
+// });
+
+// HOOK(getaddrinfo, int, (const char *node, const char *serv, const struct addrinfo *hints, struct addrinfo **res), {
+//     TRACE("getaddrinfo called");
+
+//     if (should_capture(hints)) {
+//         TRACE("getaddrinfo captured");
+
+//         struct addrinfo *tmp;
+//         uint16_t port;
+
+//         if (REAL_FUNC(getaddrinfo)("0.0.0.0", serv, hints, &tmp)) {
+//             return -1;
+//         }
+
+//         // get int port
+//         port = ((struct sockaddr_in *)tmp->ai_addr)->sin_port;
+
+//         // TRACE("%s port %d %s", node, port, serv);
+
+//         REAL_FUNC(freeaddrinfo)(tmp);
+
+//         struct addrinfo *ret = malloc(sizeof(struct addrinfo));
+//         ASSERT(ret, "out of mem");
+
+//         ret->ai_flags = hints->ai_flags;
+//         ret->ai_family = AF_DOMAIN;
+//         ret->ai_protocol = hints->ai_protocol;
+//         ret->ai_canonname = strdup(node);
+//         ret->ai_next = NULL;
+
+//         ret->ai_addrlen = sizeof(struct sockaddr_domain);
+//         ret->ai_addr = sockaddr_domain_new(node, port);
+
+//         return ret;
+//     } else {
+//         return REAL_FUNC(getaddrinfo)(node, serv, hints, res);
+//     }
+// })
+
+// HOOK(freeaddrinfo, void, (struct addrinfo *addr), {
+//     TRACE("freeaddrinfo called");
+
+//     if (addr) {
+//         if (addr->ai_family == AF_DOMAIN) {
+//             free(addr->ai_canonname);
+//             sockaddr_domain_free(addr->ai_addr);
+//             free(addr);
+//         } else {
+//             REAL_FUNC(freeaddrinfo)(addr);
+//         }
+//     }
+// })
+
+// HOOK(getnameinfo, int, (const struct sockaddr *addr, socklen_t addrlen,
+//                         char *host, socklen_t hostlen,
+//                         char *serv, socklen_t servlen, int flags), {
+//     TRACE("getnameinfo called");
+//     return REAL_FUNC(getnameinfo)(addr, addrlen, host, hostlen, serv, servlen, flags);
+// })
