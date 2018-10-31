@@ -97,6 +97,8 @@ _socks5_tcp_socket_handshake(socks5_tcp_socket_t *sock, target_id_t *target)
 
         READ_DECODE("auth sel", socks5_auth_sel_decoder, &auth_sel);
 
+        found = false;
+
         for (i = 0; i < auth_sel.size; i++) {
             if (auth_sel.data[i] == SOCKS5_AUTH_METHOD_NO_AUTH) {
                 found = true;

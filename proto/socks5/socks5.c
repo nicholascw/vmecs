@@ -108,12 +108,14 @@ socks5_decode_auth_sel(data_trunk_t *trunk,
     }
 
     if (data[0] != SOCKS5_VER) {
+        TRACE("wrong version %d", data[0]);
         return -1; // wrong version
     }
 
     len = data[1];
 
     if (len == 0) {
+        TRACE("no method given");
         return -1; // no supported method given
     }
 

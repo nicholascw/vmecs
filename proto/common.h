@@ -2,6 +2,7 @@
 #define _PROTO_COMMON_H_
 
 #include <string.h>
+#include <arpa/inet.h>
 
 #include "pub/err.h"
 #include "pub/type.h"
@@ -61,17 +62,15 @@ target_id_node(const target_id_t *target, char buf[TARGET_ID_MAX_DOMAIN + 1])
 {
     switch (target->addr_type) {
         case ADDR_TYPE_DOMAIN:
-            sprintf(buf, "%s", target->addr.domain);
+            strncpy(buf, target->addr.domain, TARGET_ID_MAX_DOMAIN);
             break;
 
         case ADDR_TYPE_IPV4:
-            sprintf(buf, "%d.%d.%d.%d",
-                    target->addr.ipv4[0], target->addr.ipv4[1],
-                    target->addr.ipv4[2], target->addr.ipv4[3]);
+            ASSERT(inet_ntop(AF_INET, target->addr.ipv4, buf, TARGET_ID_MAX_DOMAIN), "inet_ntop failed");
             break;
 
         case ADDR_TYPE_IPV6:
-            ASSERT(0, "not implemented");
+            ASSERT(inet_ntop(AF_INET6, target->addr.ipv6, buf, TARGET_ID_MAX_DOMAIN), "inet_ntop failed");
             break;
     }
 }
@@ -85,23 +84,11 @@ target_id_port(const target_id_t *target, char buf[TARGET_ID_MAX_PORT + 1])
 INLINE void
 print_target(const target_id_t *target)
 {
-    switch (target->addr_type) {
-        case ADDR_TYPE_IPV4:
-            printf("%d.%d.%d.%d:%d\n",
-                   target->addr.ipv4[0], target->addr.ipv4[1],
-                   target->addr.ipv4[2], target->addr.ipv4[3],
-                   target->port);
+    char buf[TARGET_ID_MAX_DOMAIN + 1];
 
-            break;
+    target_id_node(target, buf);
 
-        case ADDR_TYPE_DOMAIN:
-            printf("%s:%d\n",
-                   target->addr.domain, target->port);
-            break;
-
-        case ADDR_TYPE_IPV6:
-            ASSERT(0, "unimplemented");
-    }
+    printf("%s:%d\n", buf, target->port);
 }
 
 typedef struct {
