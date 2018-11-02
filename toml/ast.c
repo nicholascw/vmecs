@@ -270,6 +270,11 @@ _ast_node_entry_gen(ast_node_t *_node, void *ctx)
             assert(node->value == NULL);
             cur_env = root;
         } else {
+            if (!node->value) {
+                // set original env to root whenever changing env
+                cur_env = root;
+            }
+
             sub = cur_env;
             
             for (key = node->key; key->next; key = key->next) {
@@ -281,7 +286,7 @@ _ast_node_entry_gen(ast_node_t *_node, void *ctx)
                     tmp = (object_t *)table_object_new();
                     table_object_insert(sub, key_id, tmp);
                     sub = (table_object_t *)tmp;
-                } else if (tmp->type == OBJECT_TYPE_TABLE) {
+                } else if (IS_TYPE(tmp, TABLE)) {
                     sub = (table_object_t *)tmp;
                 } else {
                     // TODO: cannot reset value

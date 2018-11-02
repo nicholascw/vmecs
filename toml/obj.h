@@ -28,6 +28,8 @@ typedef uint8_t object_type_t;
     object_dump_t dump_func; \
     object_type_t type;
 
+#define IS_TYPE(obj, t) ((obj)->type == OBJECT_TYPE_ ## t)
+
 typedef struct object_t_tag {
     OBJECT_HEADER
 } object_t;

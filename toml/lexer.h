@@ -40,6 +40,12 @@ typedef struct {
 token_list_t *
 lexer(const char *src, const state_trans_t table[][LEXER_MAX_RULE], lexer_err_t *err);
 
+token_list_t *
+token_list_new();
+
+void
+token_list_push(token_list_t *list, const token_t *token);
+
 void
 token_list_free(token_list_t *list);
 

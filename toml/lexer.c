@@ -42,8 +42,8 @@ _match(const char *pattern, char c)
     }
 }
 
-static token_list_t *
-_token_list_new()
+token_list_t *
+token_list_new()
 {
     token_list_t *ret = malloc(sizeof(*ret));
     assert(ret);
@@ -57,8 +57,8 @@ _token_list_new()
     return ret;
 }
 
-static void
-_token_list_push(token_list_t *list, const token_t *token)
+void
+token_list_push(token_list_t *list, const token_t *token)
 {
     if (list->size == list->cap) {
         list->cap <<= 1;
@@ -90,7 +90,7 @@ lexer(const char *src, const state_trans_t table[][LEXER_MAX_RULE], lexer_err_t 
     token_t tmp_tok;
     token_list_t *ret;
 
-    ret = _token_list_new();
+    ret = token_list_new();
 
     while (i != len + 1 /* last nil char included */) {
         cur = src[i];
@@ -122,7 +122,7 @@ lexer(const char *src, const state_trans_t table[][LEXER_MAX_RULE], lexer_err_t 
                         j = i;
                     }
 
-                    _token_list_push(ret, &tmp_tok);
+                    token_list_push(ret, &tmp_tok);
                 }
 
                 break;
