@@ -3,7 +3,9 @@
 
 #include "pub/type.h"
 
-#define SHARED_LIB "libvhook.so"
+#ifndef VHOOK_CORE
+    #error VHOOK_CORE not defined
+#endif
 
 char *base_path(const char *path)
 {
@@ -33,10 +35,10 @@ int main(int argc, char **argv)
 
     char *path = base_path(argv[0]);
     size_t len = strlen(path);
-    path = realloc(path, len + sizeof(SHARED_LIB) + 1);
+    path = realloc(path, len + sizeof(VHOOK_CORE) + 1);
 
     path[len] = '/';
-    memcpy(path + len + 1, SHARED_LIB, sizeof(SHARED_LIB)); // last nil is included
+    memcpy(path + len + 1, VHOOK_CORE, sizeof(VHOOK_CORE)); // last nil is included
 
     setenv("LD_PRELOAD", path, 1);
     free(path);

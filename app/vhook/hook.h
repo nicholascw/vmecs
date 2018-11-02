@@ -1,5 +1,5 @@
-#ifndef _HOOK_H_
-#define _HOOK_H_
+#ifndef _VHOOK_HOOK_H_
+#define _VHOOK_HOOK_H_
 
 #define REAL_FUNC(name) real_ ## name
 #define REAL_TYPE(name) real_ ## name ## _t
