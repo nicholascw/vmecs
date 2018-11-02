@@ -40,38 +40,4 @@ socks5_tcp_socket_new_fd(int fd);
 int
 socks5_to_socket(socks5_tcp_socket_t *sock);
 
-/*
-
-hook protocol
-
-overload connect and getaddrinfo
-
-#define AF_DOMAIN (AF_MAX + 1)
-
-struct sockaddr_domain {
-    short family = AF_MAX + 1
-    short len
-    char *domain
-}
-
-when getaddrinfo(node, service, hint, res)
-    if node is a domain &&
-       hints.family = AF_INET &&
-       hints.type = SOCK_STREAM // only redirect tcp traffic
-        res = sockaddr_domain {
-            len = strlen(node)
-            domain = strdup(node)
-        }
-    else
-        use original getaddrinfo
-
-when connect(sock, sockaddr *addr, addrlen)
-    sock0, sock1 <- socketpair
-    dup2(sock0, sock)
-
-start a hook process
-socketpair -> sock0, sock1
-
-*/
-
 #endif

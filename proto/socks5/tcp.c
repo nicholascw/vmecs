@@ -4,7 +4,7 @@
 #include "socks5.h"
 #include "tcp.h"
 
-#define DEFAULT_BUFFER 1024
+#define DEFAULT_BUFFER 32
 
 static ssize_t
 _socks5_tcp_socket_read(tcp_socket_t *_sock, byte_t *buf, size_t size)
@@ -29,12 +29,12 @@ _socks5_tcp_socket_bind(tcp_socket_t *_sock, const char *node, const char *port)
 
     memset(&hints, 0, sizeof(hints));
     hints.ai_flags = AI_PASSIVE;
-    hints.ai_family = AF_INET;
 
-    if (getaddrinfo(node, port, &hints, &list)) {
-        perror("getaddrinfo");
+    if (getaddrinfo_r(node, port, &hints, &list)) {
         return -1;
     }
+
+    socket_set_reuse_port(sock->sock);
 
     if (bind(sock->sock, list->ai_addr, list->ai_addrlen)) {
         perror("bind");

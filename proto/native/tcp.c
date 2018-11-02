@@ -25,11 +25,12 @@ _native_tcp_socket_bind(tcp_socket_t *_sock, const char *node, const char *port)
 
     memset(&hints, 0, sizeof(hints));
     hints.ai_flags = AI_PASSIVE;
-    hints.ai_family = AF_INET;
 
-    if (getaddrinfo(node, port, &hints, &list)) {
+    if (getaddrinfo_r(node, port, &hints, &list)) {
         return -1;
     }
+
+    socket_set_reuse_port(sock->sock);
 
     if (bind(sock->sock, list->ai_addr, list->ai_addrlen)) {
         freeaddrinfo(list);
@@ -70,7 +71,7 @@ _native_tcp_socket_connect(tcp_socket_t *_sock, const char *node, const char *po
     hints.ai_flags = AI_PASSIVE;
     hints.ai_family = AF_INET;
 
-    if (getaddrinfo(node, port, &hints, &list)) {
+    if (getaddrinfo_r(node, port, &hints, &list)) {
         return -1;
     }
 

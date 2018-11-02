@@ -5,7 +5,7 @@
 
 #include "tcp.h"
 
-#define DEFAULT_BACKLOG 128
+#define DEFAULT_BACKLOG 1024
 #define DEFAULT_BUFFER (8 * 1024)
 
 tcp_router_config_t *

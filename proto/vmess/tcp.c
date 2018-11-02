@@ -8,8 +8,8 @@
 #include "tcp.h"
 #include "decoding.h"
 
-#define TCP_DEFAULT_BUF 1024
-#define RBUF_SIZE 1024
+#define TCP_DEFAULT_BUF 4096
+#define RBUF_SIZE 4096
 
 static ssize_t
 _vmess_tcp_socket_read(tcp_socket_t *_sock, byte_t *buf, size_t size)
@@ -35,12 +35,12 @@ _vmess_tcp_socket_bind(tcp_socket_t *_sock, const char *node, const char *port)
 
     memset(&hints, 0, sizeof(hints));
     hints.ai_flags = AI_PASSIVE;
-    hints.ai_family = AF_INET;
-
-    if (getaddrinfo(node, port, &hints, &list)) {
-        perror("getaddrinfo");
+    
+    if (getaddrinfo_r(node, port, &hints, &list)) {
         return -1;
     }
+    
+    socket_set_reuse_port(sock->sock);
 
     if (bind(sock->sock, list->ai_addr, list->ai_addrlen)) {
         perror("bind");

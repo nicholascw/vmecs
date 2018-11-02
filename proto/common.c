@@ -54,10 +54,8 @@ struct addrinfo *target_id_resolve(const target_id_t *target)
     target_id_port(target, port);
 
     memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_UNSPEC;
 
-    if (getaddrinfo(buf, port, &hints, &res)) {
-        perror("getaddrinfo");
+    if (getaddrinfo_r(buf, port, &hints, &res)) {
         return NULL;
     }
 

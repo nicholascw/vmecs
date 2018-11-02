@@ -8,6 +8,7 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdio.h>
 
 #include "pub/type.h"
 #include "pub/time.h"
@@ -54,6 +55,33 @@ socket_set_timeout(int fd, int sec)
     tv.tv_sec = sec;
     tv.tv_nsec = 0;
     return setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+}
+
+INLINE int
+socket_set_reuse_port(int fd)
+{
+    int optval = 1;
+    return setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval));
+}
+
+INLINE void
+pgai_error(int err)
+{
+    fprintf(stderr, "%s\n", gai_strerror(err));
+}
+
+INLINE int
+getaddrinfo_r(const char *node, const char *service,
+              const struct addrinfo *hints, struct addrinfo **res)
+{
+    int err = getaddrinfo(node, service, hints, res);
+
+    if (err) {
+        pgai_error(err);
+        return err;
+    }
+
+    return 0;
 }
 
 #endif
