@@ -12,6 +12,7 @@
 struct object_t_tag;
 
 typedef void (*object_free_t)(struct object_t_tag *obj);
+typedef void (*object_dump_t)(struct object_t_tag *obj);
 
 enum {
     OBJECT_TYPE_INT,
@@ -24,6 +25,7 @@ typedef uint8_t object_type_t;
 
 #define OBJECT_HEADER \
     object_free_t free_func; \
+    object_dump_t dump_func; \
     object_type_t type;
 
 typedef struct object_t_tag {
@@ -38,6 +40,18 @@ object_free(void *obj)
             ((object_t *)obj)->free_func(obj);
         else
             free(obj);
+    }
+}
+
+static inline void
+object_dump(void *obj)
+{
+    if (!obj) {
+        fprintf(stderr, "(NULL)");
+    } else if (((object_t *)obj)->dump_func) {
+        ((object_t *)obj)->dump_func(obj);
+    } else {
+        fprintf(stderr, "object at %p", obj);
     }
 }
 

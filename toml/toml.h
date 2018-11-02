@@ -14,7 +14,7 @@
 token_list_t *
 toml_lexer(const char *src, lexer_err_t *err);
 
-ast_node_t *
+ast_node_entry_t *
 toml_parse(token_list_t *list);
 
 #endif

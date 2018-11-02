@@ -13,10 +13,12 @@ struct ast_node_t_tag;
 
 typedef void (*ast_node_free_t)(struct ast_node_t_tag *node);
 typedef void (*ast_node_dump_t)(struct ast_node_t_tag *node);
+typedef void *(*ast_node_gen_t)(struct ast_node_t_tag *node, void *ctx);
 
 #define AST_NODE_HEADER \
     ast_node_free_t free_func; \
-    ast_node_dump_t dump_func;
+    ast_node_dump_t dump_func; \
+    ast_node_gen_t gen_func;
 
 typedef struct ast_node_t_tag {
     AST_NODE_HEADER
@@ -42,6 +44,12 @@ ast_node_dump(void *node)
     } else {
         fprintf(stderr, "(NULL)");
     }
+}
+
+static inline void *
+ast_node_gen(void *node, void *ctx)
+{
+    return ((ast_node_t *)node)->gen_func(node, ctx);
 }
 
 typedef struct {

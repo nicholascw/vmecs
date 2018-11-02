@@ -7,7 +7,8 @@ int main()
 {
     lexer_err_t err;
     token_list_t *list;
-    ast_node_t *node;
+    ast_node_entry_t *node;
+    table_object_t *res;
 
 #define TEST(str) \
     fprintf(stderr, "############################\n"); \
@@ -50,6 +51,32 @@ int main()
     fprintf(stderr, "an int: %p %p\n", (void *)int_obj, (void *)table_object_lookup(tab_obj, "an int"));
 
     object_free(tab_obj);
+
+    fprintf(stderr, "############################\n");
+    list = toml_lexer(
+        "a = 10\n"
+        "b.c.d = 20\n"
+        "[c]\n"
+        "  d = true",
+        &err);
+    node = toml_parse(list);
+    ast_node_dump(node);
+    fprintf(stderr, "\n");
+
+    gen_err_t gen_err;
+
+    res = (table_object_t *)ast_node_gen(node, &gen_err);
+
+    if (!res) {
+        fprintf(stderr, "%s\n", gen_err.msg);
+    }
+
+    object_dump(res);
+    fprintf(stderr, "\n");
+
+    object_free(res);
+    ast_node_free(node);
+    token_list_free(list);
 
     return 0;
 }

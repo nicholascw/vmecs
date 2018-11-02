@@ -58,4 +58,8 @@ typedef struct ast_node_entry_t_tag {
 
 ast_node_t *ast_node_entry_new(ast_node_key_t *key, ast_node_value_t *value, ast_node_entry_t *next);
 
+typedef struct {
+    const char *msg;
+} gen_err_t;
+
 #endif

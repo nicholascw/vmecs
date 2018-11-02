@@ -376,6 +376,14 @@ RULE(sv_entry, {
         ), {
         RETURN_NODE(ast_node_entry_new((ast_node_key_t *)CHILD(2), NULL, NULL));
     })
+
+    IF_MATCH(SYMBOLS(
+        SPACE_OPT,
+        TERM(T_LBRACK), SPACE_OPT,
+        TERM(T_RBRACK), SPACE_OPT
+        ), {
+        RETURN_NODE(ast_node_entry_new(NULL, NULL, NULL));
+    })
 })
 
 RULE(sv_newline_list_opt, {
@@ -420,7 +428,7 @@ RULE(sv_parse_unit, {
     })
 })
 
-ast_node_t *
+ast_node_entry_t *
 toml_parse(token_list_t *list)
 {
     result_t res = PARSE(sv_parse_unit, list);
@@ -434,5 +442,5 @@ toml_parse(token_list_t *list)
         return NULL;
     }
 
-    return res.node;
+    return (ast_node_entry_t *)res.node;
 }
