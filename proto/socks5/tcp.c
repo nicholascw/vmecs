@@ -226,6 +226,11 @@ _socks5_tcp_socket_connect(tcp_socket_t *_sock, const char *node, const char *po
 
     target = target_id_parse(node, port);
 
+    if (!target) {
+        TRACE("invalid node/port");
+        return -1;
+    }
+
     if (!_socks5_tcp_socket_handshake(sock, target)) {
         target_id_free(target);
         return -1;

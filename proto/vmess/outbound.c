@@ -24,6 +24,18 @@ _vmess_tcp_outbound_client(tcp_outbound_t *_outbound, const target_id_t *target)
     return (tcp_socket_t *)sock;
 }
 
+static void
+_vmess_tcp_outbound_free(tcp_outbound_t *_outbound)
+{
+    vmess_tcp_outbound_t *outbound = (vmess_tcp_outbound_t *)_outbound;
+
+    if (outbound) {
+        vmess_config_free(outbound->config);
+        target_id_free(outbound->proxy);
+        free(outbound);
+    }
+}
+
 vmess_tcp_outbound_t *
 vmess_tcp_outbound_new(vmess_config_t *config, target_id_t *proxy)
 {
@@ -31,19 +43,9 @@ vmess_tcp_outbound_new(vmess_config_t *config, target_id_t *proxy)
     ASSERT(ret, "out of mem");
 
     ret->client_func = _vmess_tcp_outbound_client;
-
+    ret->free_func = _vmess_tcp_outbound_free;
     ret->config = vmess_config_copy(config);
     ret->proxy = target_id_copy(proxy);
 
     return ret;
-}
-
-void
-vmess_tcp_outbound_free(vmess_tcp_outbound_t *outbound)
-{
-    if (outbound) {
-        vmess_config_free(outbound->config);
-        target_id_free(outbound->proxy);
-        free(outbound);
-    }
 }

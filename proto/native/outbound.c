@@ -15,6 +15,14 @@ _native_tcp_outbound_client(tcp_outbound_t *_outbound, const target_id_t *target
     return sock;
 }
 
+static void
+_native_tcp_outbound_free(tcp_outbound_t *outbound)
+{
+    if (outbound) {
+        free(outbound);
+    }
+}
+
 native_tcp_outbound_t *
 native_tcp_outbound_new()
 {
@@ -22,14 +30,7 @@ native_tcp_outbound_new()
     ASSERT(ret, "out of mem");
 
     ret->client_func = _native_tcp_outbound_client;
+    ret->free_func = _native_tcp_outbound_free;
     
     return ret;
-}
-
-void
-native_tcp_outbound_free(native_tcp_outbound_t *outbound)
-{
-    if (outbound) {
-        free(outbound);
-    }
 }

@@ -16,7 +16,4 @@ typedef struct {
 vmess_tcp_inbound_t *
 vmess_tcp_inbound_new(vmess_config_t *config, target_id_t *local);
 
-void
-vmess_tcp_inbound_free(vmess_tcp_inbound_t *inbound);
-
 #endif

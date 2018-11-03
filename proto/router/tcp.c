@@ -63,7 +63,7 @@ _tcp_router_reader(void *arg)
         // TRACE("reader got data");
         if ((n_write = tcp_socket_write(job->in_sock, buf, n_read)) &&
             n_write != -1) {
-            TRACE("inbound <- outbound");
+            // TRACE("inbound <- outbound");
             // hexdump("outbound -> inbound", buf, n_read);
         } else {
             // write error
@@ -99,7 +99,7 @@ _tcp_router_writer(void *arg)
         // TRACE("writer got data");
         if ((n_write = tcp_socket_write(job->out_sock, buf, n_read)) &&
             n_write != -1) {
-            TRACE("inbound -> outbound");
+            // TRACE("inbound -> outbound");
             // hexdump("inbound -> outbound", buf, n_read);
         } else {
             // write error

@@ -12,7 +12,7 @@ int crypto_hmac_md5(const byte_t *key, size_t key_size,
                     const byte_t *data, size_t data_size,
                     hash128_t hash);
 
-int crypto_shake128(const byte_t *data, size_t data_size, hash128_t hash);
+// int crypto_shake128(const byte_t *data, size_t data_size, hash128_t hash);
 
 uint32_t crypto_fnv1a(const byte_t *data, size_t data_size);
 

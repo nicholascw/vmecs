@@ -15,7 +15,4 @@ typedef struct {
 socks5_tcp_inbound_t *
 socks5_tcp_inbound_new(target_id_t *local);
 
-void
-socks5_tcp_inbound_free(socks5_tcp_inbound_t *inbound);
-
 #endif

@@ -12,7 +12,4 @@ typedef struct {
 native_tcp_outbound_t *
 native_tcp_outbound_new();
 
-void
-native_tcp_outbound_free(native_tcp_outbound_t *outbound);
-
 #endif

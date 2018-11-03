@@ -19,6 +19,18 @@ _vmess_tcp_inbound_server(tcp_inbound_t *_inbound)
     return sock;
 }
 
+static void
+_vmess_tcp_inbound_free(tcp_inbound_t *_inbound)
+{
+    vmess_tcp_inbound_t *inbound = (vmess_tcp_inbound_t *)_inbound;
+
+    if (inbound) {
+        vmess_config_free(inbound->config);
+        target_id_free(inbound->local);
+        free(inbound);
+    }
+}
+
 vmess_tcp_inbound_t *
 vmess_tcp_inbound_new(vmess_config_t *config, target_id_t *local)
 {
@@ -26,18 +38,9 @@ vmess_tcp_inbound_new(vmess_config_t *config, target_id_t *local)
     ASSERT(ret, "out of mem");
 
     ret->server_func = _vmess_tcp_inbound_server;
+    ret->free_func = _vmess_tcp_inbound_free;
     ret->config = vmess_config_copy(config);
     ret->local = target_id_copy(local);
 
     return ret;
-}
-
-void
-vmess_tcp_inbound_free(vmess_tcp_inbound_t *inbound)
-{
-    if (inbound) {
-        vmess_config_free(inbound->config);
-        target_id_free(inbound->local);
-        free(inbound);
-    }
 }

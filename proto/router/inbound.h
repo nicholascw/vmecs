@@ -8,20 +8,30 @@
 // an inbound acts like a server
 
 #define TCP_INBOUND_HEADER \
-    tcp_inbound_server_t server_func;
+    tcp_inbound_server_t server_func; \
+    tcp_inbound_free_t free_func;
 
 struct tcp_inbound_t_tag;
 
 typedef tcp_socket_t *(*tcp_inbound_server_t)(struct tcp_inbound_t_tag *inbound);
+typedef void (*tcp_inbound_free_t)(struct tcp_inbound_t_tag *inbound);
 
 typedef struct tcp_inbound_t_tag {
     TCP_INBOUND_HEADER
 } tcp_inbound_t;
 
 INLINE tcp_socket_t *
-tcp_inbound_server(tcp_inbound_t *inbound)
+tcp_inbound_server(void *inbound)
 {
-    return inbound->server_func(inbound);
+    return ((tcp_inbound_t *)inbound)->server_func(inbound);
+}
+
+INLINE void
+tcp_inbound_free(void *inbound)
+{
+    if (inbound) {
+        ((tcp_inbound_t *)inbound)->free_func(inbound);
+    }
 }
 
 #endif

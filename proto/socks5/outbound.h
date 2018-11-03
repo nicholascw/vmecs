@@ -15,7 +15,4 @@ typedef struct {
 socks5_tcp_outbound_t *
 socks5_tcp_outbound_new(target_id_t *proxy);
 
-void
-socks5_tcp_outbound_free(socks5_tcp_outbound_t *outbound);
-
 #endif

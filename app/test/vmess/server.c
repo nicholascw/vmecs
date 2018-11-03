@@ -39,8 +39,8 @@ int main()
     target_id_free(local);
     tcp_router_config_free(router_conf);
 
-    vmess_tcp_inbound_free(inbound);
-    native_tcp_outbound_free(outbound);
+    tcp_inbound_free(inbound);
+    tcp_outbound_free(outbound);
 
     return 0;
 }

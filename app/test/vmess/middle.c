@@ -40,8 +40,8 @@ int main()
     target_id_free(proxy);
     tcp_router_config_free(router_conf);
 
-    vmess_tcp_inbound_free(inbound);
-    vmess_tcp_outbound_free(outbound);
+    tcp_inbound_free(inbound);
+    tcp_outbound_free(outbound);
 
     return 0;
 }

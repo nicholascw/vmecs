@@ -1,8 +1,8 @@
 [inbound]
-    proto = "socks5"
+    proto = "vmess"
     local = "0.0.0.0"
-    port = "3133"
-    # pass = "123456"
+    port = "3134"
+    pass = "123456"
 
 [outbound]
     proto = "native"

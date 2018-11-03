@@ -19,6 +19,17 @@ _socks5_tcp_inbound_server(tcp_inbound_t *_inbound)
     return sock;
 }
 
+static void
+_socks5_tcp_inbound_free(tcp_inbound_t *_inbound)
+{
+    socks5_tcp_inbound_t *inbound = (socks5_tcp_inbound_t *)_inbound;
+
+    if (inbound) {
+        target_id_free(inbound->local);
+        free(inbound);
+    }
+}
+
 socks5_tcp_inbound_t *
 socks5_tcp_inbound_new(target_id_t *local)
 {
@@ -26,16 +37,8 @@ socks5_tcp_inbound_new(target_id_t *local)
     ASSERT(ret, "out of mem");
 
     ret->server_func = _socks5_tcp_inbound_server;
+    ret->free_func = _socks5_tcp_inbound_free;
     ret->local = target_id_copy(local);
 
     return ret;
-}
-
-void
-socks5_tcp_inbound_free(socks5_tcp_inbound_t *inbound)
-{
-    if (inbound) {
-        target_id_free(inbound->local);
-        free(inbound);
-    }
 }

@@ -16,7 +16,4 @@ typedef struct {
 vmess_tcp_outbound_t *
 vmess_tcp_outbound_new(vmess_config_t *config, target_id_t *proxy);
 
-void
-vmess_tcp_outbound_free(vmess_tcp_outbound_t *outbound);
-
 #endif

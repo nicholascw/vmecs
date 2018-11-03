@@ -23,6 +23,17 @@ _socks5_tcp_outbound_client(tcp_outbound_t *_outbound, const target_id_t *target
     return (tcp_socket_t *)sock;
 }
 
+static void
+_socks5_tcp_outbound_free(tcp_outbound_t *_outbound)
+{
+    socks5_tcp_outbound_t *outbound = (socks5_tcp_outbound_t *)_outbound;
+
+    if (outbound) {
+        target_id_free(outbound->proxy);
+        free(outbound);
+    }
+}
+
 socks5_tcp_outbound_t *
 socks5_tcp_outbound_new(target_id_t *proxy)
 {
@@ -30,16 +41,8 @@ socks5_tcp_outbound_new(target_id_t *proxy)
     ASSERT(ret, "out of mem");
 
     ret->client_func = _socks5_tcp_outbound_client;
+    ret->free_func = _socks5_tcp_outbound_free;
     ret->proxy = target_id_copy(proxy);
 
     return ret;
-}
-
-void
-socks5_tcp_outbound_free(socks5_tcp_outbound_t *outbound)
-{
-    if (outbound) {
-        target_id_free(outbound->proxy);
-        free(outbound);
-    }
 }
