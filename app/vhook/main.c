@@ -2,6 +2,7 @@
 #include <stdlib.h>
 
 #include "pub/type.h"
+#include "hook.h"
 
 #ifndef VHOOK_CORE
     #error VHOOK_CORE not defined
@@ -28,10 +29,14 @@ char *base_path(const char *path)
 
 int main(int argc, char **argv)
 {
-    if (argc < 2) {
+    if (argc < 4) {
         TRACE("no enough argument");
+        TRACE("usage: %s <proxy> <port> <client program> [[arg 1] ...]", argv[0] ? argv[0] : "vhook");
         return 1;
     }
+
+    const char *proxy = argv[1];
+    const char *port = argv[2];
 
     char *path = base_path(argv[0]);
     size_t len = strlen(path);
@@ -39,11 +44,15 @@ int main(int argc, char **argv)
 
     path[len] = '/';
     memcpy(path + len + 1, VHOOK_CORE, sizeof(VHOOK_CORE)); // last nil is included
+    // path = base path + '/' + VHOOK_CORE
 
     setenv("LD_PRELOAD", path, 1);
     free(path);
 
-    execvp(argv[1], argv + 2);
+    setenv(PROXY_ENV_VAR, proxy, 1);
+    setenv(PORT_ENV_VAR, port, 1);
+
+    execvp(argv[3], argv + 3);
     TRACE("exec failed");
 
     return 1;
