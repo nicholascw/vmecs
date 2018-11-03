@@ -4,7 +4,7 @@ project(vmecs)
 
 # set basic compile flags
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -fPIC -Wall -pedantic -Wno-address -Wno-unused-function")
-set(CMAKE_C_COMPILER "clang")
+# set(CMAKE_C_COMPILER "clang")
 
 # add common headers
 include_directories(${PROJECT_SOURCE_DIR})
