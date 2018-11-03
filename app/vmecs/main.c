@@ -19,7 +19,7 @@
 #include "proto/native/outbound.h"
 
 #define HELP \
-    "%s [config]\n"
+    "%s <config>\n"
 
 void print_help(const char *prog)
 {
