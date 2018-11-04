@@ -91,14 +91,13 @@ _vmess_tcp_socket_close(tcp_socket_t *_sock)
     size_t size;
     const byte_t *trunk = vmess_serial_end(&size);
 
+    // close write and read buffer to
+    // prevent further read/write
     vbuffer_close(sock->write_buf);
     vbuffer_close(sock->read_buf);
 
-    // TRACE("buffer closed");
-
+    // wait until all write buffer is drained
     vbuffer_drain(sock->write_buf);
-
-    // TRACE("buffer drained");
 
     // write mutex is here to ensure all data is written
     // before the end chunk is sent
@@ -225,8 +224,6 @@ _vmess_tcp_socket_reader(void *arg)
 
     // read from remote and prepare read_buf
 
-    // TRACE("reader %p", sock);
-
     while (!end) {
         switch (rbuffer_read(rbuf, sock->sock, vmess_data_decoder,
                              VMESS_DECODER_CTX(sock->config, &sock->auth), &trunk)) {
@@ -256,7 +253,7 @@ _vmess_tcp_socket_reader(void *arg)
     TRACE("reader exited %p", (void *)sock);
 
     rbuffer_free(rbuf);
-    // tcp_socket_close(sock);
+
     vbuffer_close(sock->read_buf);
     vbuffer_close(sock->write_buf);
 
@@ -275,10 +272,9 @@ _vmess_tcp_socket_writer(void *arg)
     size_t size;
     bool end = false;
 
-    while (!end) {
+    while (1) {
         // TRACE("writer waiting for lock");
         pthread_mutex_lock(&sock->write_mut);
-        // TRACE("writer got lock");
 
         size = vbuffer_read(sock->write_buf, buf, RBUF_SIZE);
 
@@ -288,19 +284,17 @@ _vmess_tcp_socket_writer(void *arg)
             break;
         }
 
-        vmess_serial_write(sock->vser, buf, size);
-        
-        // flush all
-        while ((trunk = vmess_serial_digest(sock->vser, &size))) {
-            // hexdump("digested", trunk + size - 6, 6);
+        if (!end) {
+            vmess_serial_write(sock->vser, buf, size);
+            
+            // flush all
+            while ((trunk = vmess_serial_digest(sock->vser, &size))) {
+                if (write_r(sock->sock, trunk, size) == -1) {
+                    end = true;
+                }
 
-            // hexdump("writting", trunk, size);
-
-            if (write_r(sock->sock, trunk, size) == -1) {
-                end = true;
+                free(trunk);
             }
-
-            free(trunk);
         }
 
         pthread_mutex_unlock(&sock->write_mut);

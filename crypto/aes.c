@@ -59,20 +59,23 @@ byte_t *_crypto_aes(const EVP_CIPHER *type,
     return ret;
 }
 
-#define GEN_AES(mode) \
-    byte_t *crypto_aes_128_##mode##_enc(const byte_t *key, const byte_t *iv, \
-                                        const byte_t *data, size_t data_size, \
-                                        size_t *out_size_p) \
+#define GEN_AES(mode, block_size) \
+    byte_t *crypto_aes_ ## block_size ## _ ## mode ## _enc \
+        (const byte_t *key, const byte_t *iv, \
+         const byte_t *data, size_t data_size, \
+         size_t *out_size_p) \
     { \
-        return _crypto_aes(EVP_aes_128_##mode(), key, iv, data, data_size, out_size_p, 1); \
+        return _crypto_aes(EVP_aes_ ## block_size ## _ ## mode(), key, iv, data, data_size, out_size_p, 1); \
     } \
     \
-    byte_t *crypto_aes_128_##mode##_dec(const byte_t *key, const byte_t *iv, \
-                                        const byte_t *ctext, size_t ctext_size, \
-                                        size_t *out_size_p) \
+    byte_t *crypto_aes_ ## block_size ## _ ## mode ## _dec \
+        (const byte_t *key, const byte_t *iv, \
+         const byte_t *ctext, size_t ctext_size, \
+         size_t *out_size_p) \
     { \
-        return _crypto_aes(EVP_aes_128_##mode(), key, iv, ctext, ctext_size, out_size_p, 0); \
+        return _crypto_aes(EVP_aes_ ## block_size ## _ ## mode(), key, iv, ctext, ctext_size, out_size_p, 0); \
     }
 
-GEN_AES(cfb)
+GEN_AES(cfb, 128)
+GEN_AES(cfb, 256)
 // GEN_AES(gcm)

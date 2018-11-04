@@ -173,7 +173,7 @@ tcp_inbound_t *vmess_inbound_builder(toml_object_t *config)
     vmess_config_t *vmess_config;
     vmess_tcp_inbound_t *inbound;
     
-    hash128_t user_id;
+    data128_t user_id;
 
     if (!config_lookup_string(config, "inbound.pass", &pass)) {
         fprintf(stderr, "inbound.pass not defined\n");
@@ -204,7 +204,7 @@ tcp_outbound_t *vmess_outbound_builder(toml_object_t *config)
     vmess_config_t *vmess_config;
     vmess_tcp_outbound_t *outbound;
     
-    hash128_t user_id;
+    data128_t user_id;
 
     if (!config_lookup_string(config, "outbound.pass", &pass)) {
         fprintf(stderr, "outbound.pass not defined\n");

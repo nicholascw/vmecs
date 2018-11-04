@@ -18,7 +18,7 @@ vmess_serial_request(vmess_serial_t *vser,
                      vmess_config_t *config,
                      vmess_request_t *req)
 {
-    hash128_t valid_code;
+    data128_t valid_code;
     uint64_t gen_time = vser->auth.gen_time;
     size_t cmd_size;
     size_t out_size;

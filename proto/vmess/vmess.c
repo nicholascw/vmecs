@@ -16,9 +16,9 @@
 #define AES_128_CFB_TRUNK (4096 - 6) // (((uint16_t)~0) - 1 - 4) // 2^16 - 1 - 4(checksum)
 #define NO_ENC_TRUNK (4096 - 2) // (((uint16_t)~0) - 1) // 2^16 - 1
 
-void vmess_gen_key(vmess_config_t *config, hash128_t key)
+void vmess_gen_key(vmess_config_t *config, data128_t key)
 {
-    byte_t tmp_data[sizeof(hash128_t) * 2];
+    byte_t tmp_data[sizeof(data128_t) * 2];
 
     memcpy(tmp_data, config->user_id, sizeof(config->user_id));
     memcpy(tmp_data + sizeof(config->user_id), config->magic_no, sizeof(config->magic_no));
@@ -28,7 +28,7 @@ void vmess_gen_key(vmess_config_t *config, hash128_t key)
     }
 }
 
-void vmess_gen_iv(vmess_config_t *config, uint64_t time, hash128_t iv)
+void vmess_gen_iv(vmess_config_t *config, uint64_t time, data128_t iv)
 {
     uint64_t tmp_data[4];
 
@@ -39,7 +39,7 @@ void vmess_gen_iv(vmess_config_t *config, uint64_t time, hash128_t iv)
     }
 }
 
-vmess_config_t *vmess_config_new(hash128_t user_id)
+vmess_config_t *vmess_config_new(data128_t user_id)
 {
     vmess_config_t *ret = malloc(sizeof(*ret));
 
@@ -98,11 +98,11 @@ vmess_serial_write(vmess_serial_t *vser,
 }
 
 void
-vmess_gen_validation_code(const hash128_t user_id, uint64_t timestamp, hash128_t out)
+vmess_gen_validation_code(const data128_t user_id, uint64_t timestamp, data128_t out)
 {
     timestamp = be64(timestamp);
 
-    ASSERT(crypto_hmac_md5(user_id, sizeof(hash128_t),
+    ASSERT(crypto_hmac_md5(user_id, sizeof(data128_t),
                            (byte_t *)&timestamp, sizeof(timestamp),
                            out) == 0, "hmac md5 failed");
 }

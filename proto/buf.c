@@ -112,13 +112,26 @@ vbuffer_new(size_t init)
 }
 
 void
-vbuffer_drain(vbuffer_t *vbuf)
+vbuffer_wait_drain(vbuffer_t *vbuf)
 {
     pthread_mutex_lock(&vbuf->mut);
 
     while (vbuf->w_idx) {
         pthread_cond_wait(&vbuf->drain, &vbuf->mut);
     }
+
+    pthread_mutex_unlock(&vbuf->mut);
+}
+
+void
+vbuffer_drain(vbuffer_t *vbuf)
+{
+    vbuffer_close(vbuf);
+
+    pthread_mutex_lock(&vbuf->mut);
+
+    vbuf->w_idx = 0;
+    pthread_cond_broadcast(&vbuf->drain);
 
     pthread_mutex_unlock(&vbuf->mut);
 }

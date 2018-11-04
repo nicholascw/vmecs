@@ -8,13 +8,13 @@
 
 // search for the timestamp the request is generated
 uint64_t
-_vmess_lookup_timestamp(vmess_config_t *config, const hash128_t valid_code)
+_vmess_lookup_timestamp(vmess_config_t *config, const data128_t valid_code)
 {
     uint64_t cur_time = time(NULL);
     uint64_t delta = config->time_delta;
     uint64_t t;
 
-    hash128_t test;
+    data128_t test;
     
     for (t = cur_time - delta; t <= cur_time + delta; t++) {
         vmess_gen_validation_code(config->user_id, t, test);
@@ -30,7 +30,7 @@ _vmess_lookup_timestamp(vmess_config_t *config, const hash128_t valid_code)
 
 bool // return found or not
 vmess_lookup_auth(vmess_auth_t *auth, vmess_config_t *config,
-                  const hash128_t valid_code)
+                  const data128_t valid_code)
 {
     uint64_t gen_time = _vmess_lookup_timestamp(config, valid_code);
 
@@ -129,7 +129,7 @@ vmess_decode_request(vmess_config_t *config,
                      const byte_t *data, size_t size)
 {
     serial_t ser;
-    hash128_t valid_code;
+    data128_t valid_code;
 
     byte_t vers;
     byte_t nonce;
@@ -156,7 +156,7 @@ vmess_decode_request(vmess_config_t *config,
 
     size_t n_read;
 
-    hash128_t key_check, iv_check;
+    data128_t key_check, iv_check;
 
 #define CLEARUP() \
     do { \

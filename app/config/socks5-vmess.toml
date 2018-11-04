@@ -5,6 +5,6 @@
     
 [outbound]
     proto = "vmess"
-    proxy = "who.the.fluff.is.handsome-rod.online"
+    proxy = "127.0.0.1"
     port = "3134"
     pass = "123456"

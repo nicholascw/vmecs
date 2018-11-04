@@ -10,7 +10,7 @@
 
 #include "proto/router/tcp.h"
 
-hash128_t user_id;
+data128_t user_id;
 
 int main()
 {

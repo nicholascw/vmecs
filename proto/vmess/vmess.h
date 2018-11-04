@@ -5,7 +5,7 @@
 #include "pub/type.h"
 #include "proto/common.h"
 
-#define VMESS_MAGIC_NO ((hash128_t) { \
+#define VMESS_MAGIC_NO ((data128_t) { \
         0xc4, 0x86, 0x19, 0xfe, \
         0x8f, 0x02, 0x49, 0xe0, \
         0xb9, 0xe9, 0xed, 0xf7, \
@@ -18,8 +18,8 @@
 #define VMESS_P_MAX 16
 
 typedef struct {
-    hash128_t user_id;
-    hash128_t magic_no;
+    data128_t user_id;
+    data128_t magic_no;
     uint64_t time_delta;
     int p_max;
 } vmess_config_t;
@@ -66,7 +66,7 @@ typedef struct {
 // authorization info
 // unique to each connection
 typedef struct {
-    hash128_t key, iv;
+    data128_t key, iv;
     uint64_t gen_time;
     byte_t nonce;
 } vmess_auth_t;
@@ -108,7 +108,7 @@ typedef struct {
 
  */
 
-vmess_config_t *vmess_config_new(hash128_t user_id);
+vmess_config_t *vmess_config_new(data128_t user_id);
 void vmess_config_free(vmess_config_t *config);
 
 vmess_config_t *vmess_config_copy(vmess_config_t *config);
@@ -154,10 +154,10 @@ void vmess_request_free(vmess_request_t *req);
 void vmess_request_destroy(vmess_request_t *req);
 
 void
-vmess_gen_validation_code(const hash128_t user_id, uint64_t timestamp, hash128_t out);
+vmess_gen_validation_code(const data128_t user_id, uint64_t timestamp, data128_t out);
 
-void vmess_gen_key(vmess_config_t *config, hash128_t key);
-void vmess_gen_iv(vmess_config_t *config, uint64_t time, hash128_t iv);
+void vmess_gen_key(vmess_config_t *config, data128_t key);
+void vmess_gen_iv(vmess_config_t *config, uint64_t time, data128_t iv);
 
 INLINE void
 vmess_auth_init(vmess_auth_t *auth, vmess_config_t *config, uint64_t gen_time)

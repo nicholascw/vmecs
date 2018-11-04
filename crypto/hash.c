@@ -5,7 +5,7 @@
 
 #include "hash.h"
 
-int crypto_md5(const byte_t *data, size_t size, hash128_t hash)
+int crypto_md5(const byte_t *data, size_t size, data128_t hash)
 {
     if (!MD5(data, size, hash)) {
         ERR_print_errors_fp(stderr);
@@ -17,7 +17,7 @@ int crypto_md5(const byte_t *data, size_t size, hash128_t hash)
 
 int crypto_hmac_md5(const byte_t *key, size_t key_size,
                     const byte_t *data, size_t data_size,
-                    hash128_t hash)
+                    data128_t hash)
 {
     const EVP_MD *md5 = EVP_md5();
 
@@ -54,7 +54,7 @@ int _crypto_evp_md(const EVP_MD *evp, const byte_t *data, size_t data_size, byte
 #undef CLEAR_EXIT
 }
 
-int crypto_shake128(const byte_t *data, size_t data_size, hash128_t hash)
+int crypto_shake128(const byte_t *data, size_t data_size, data128_t hash)
 {
     return _crypto_evp_md(EVP_shake128(), data, data_size, hash);
 }

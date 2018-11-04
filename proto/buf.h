@@ -46,6 +46,11 @@ vbuffer_t *
 vbuffer_new(size_t init);
 
 void
+vbuffer_wait_drain(vbuffer_t *vbuf);
+
+// flush out all the data
+// this function will call vbuffer_close
+void
 vbuffer_drain(vbuffer_t *vbuf);
 
 // may block if no data is ready
