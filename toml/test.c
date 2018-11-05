@@ -5,78 +5,82 @@
 
 int main()
 {
-//     lexer_err_t err;
-//     token_list_t *list;
-//     ast_node_entry_t *node;
-//     table_object_t *res;
+#if 0
 
-// #define TEST(str) \
-//     fprintf(stderr, "############################\n"); \
-//     list = toml_lexer(str, &err); \
-//     token_list_free(list);
+    lexer_err_t err;
+    token_list_t *list;
+    ast_node_entry_t *node;
+    table_object_t *res;
 
-//     TEST("abc s \tss.o = ss. \n\noo0 \"hello\\\"\" ");
-//     TEST(
-//         "[yo.config]\n"
-//         "   name = 'hi'\n"
-//         "   port = -10_2_39.0\n"
-//         "   score = .1\n"
-//         "   kill = true\n"
-//         "   false = true"
-//     );
+#define TEST(str) \
+    fprintf(stderr, "############################\n"); \
+    list = toml_lexer(str, &err); \
+    token_list_free(list);
 
-//     fprintf(stderr, "############################\n");
-//     list = toml_lexer(
-//         "[a.b.bc]\n"
-//         "    a.b.c.c.c.c.c.c.c.c = true\n\n\n"
-//         " a = 'hi' \n  "
-//         " b = \"sdsd\" \n"
-//         " c = 101_011_020 ",
-//         &err);
-//     node = toml_parse(list, NULL);
-//     ast_node_dump(node);
-//     fprintf(stderr, "\n");
+    TEST("abc s \tss.o = ss. \n\noo0 \"hello\\\"\" ");
+    TEST(
+        "[yo.config]\n"
+        "   name = 'hi'\n"
+        "   port = -10_2_39.0\n"
+        "   score = .1\n"
+        "   kill = true\n"
+        "   false = true"
+    );
 
-//     ast_node_free(node);
-//     token_list_free(list);
+    fprintf(stderr, "############################\n");
+    list = toml_lexer(
+        "[a.b.bc]\n"
+        "    a.b.c.c.c.c.c.c.c.c = true\n\n\n"
+        " a = 'hi' \n  "
+        " b = \"sdsd\" \n"
+        " c = 101_011_020 ",
+        &err);
+    node = toml_parse(list, NULL);
+    ast_node_dump(node);
+    fprintf(stderr, "\n");
 
-//     table_object_t *tab_obj = table_object_new();
-//     string_object_t *str_obj = string_object_new("yo");
-//     int_object_t *int_obj = int_object_new(10086);
+    ast_node_free(node);
+    token_list_free(list);
 
-//     table_object_insert(tab_obj, "a string", (object_t *)str_obj);
-//     table_object_insert(tab_obj, "an int", (object_t *)int_obj);
+    table_object_t *tab_obj = table_object_new();
+    string_object_t *str_obj = string_object_new("yo");
+    int_object_t *int_obj = int_object_new(10086);
 
-//     fprintf(stderr, "a string: %p %p\n", (void *)str_obj, (void *)table_object_lookup(tab_obj, "a string"));
-//     fprintf(stderr, "an int: %p %p\n", (void *)int_obj, (void *)table_object_lookup(tab_obj, "an int"));
+    table_object_insert(tab_obj, "a string", (object_t *)str_obj);
+    table_object_insert(tab_obj, "an int", (object_t *)int_obj);
 
-//     object_free(tab_obj);
+    fprintf(stderr, "a string: %p %p\n", (void *)str_obj, (void *)table_object_lookup(tab_obj, "a string"));
+    fprintf(stderr, "an int: %p %p\n", (void *)int_obj, (void *)table_object_lookup(tab_obj, "an int"));
 
-//     fprintf(stderr, "############################\n");
-//     list = toml_lexer(
-//         "a = 10\n"
-//         "b.c.d = 20\n"
-//         "[c]\n"
-//         "  d = true",
-//         &err);
-//     node = toml_parse(list, NULL);
-//     ast_node_dump(node);
-//     fprintf(stderr, "\n");
+    object_free(tab_obj);
 
-//     gen_err_t gen_err;
+    fprintf(stderr, "############################\n");
+    list = toml_lexer(
+        "a = 10\n"
+        "b.c.d = 20\n"
+        "[c]\n"
+        "  d = true",
+        &err);
+    node = toml_parse(list, NULL);
+    ast_node_dump(node);
+    fprintf(stderr, "\n");
 
-//     res = (table_object_t *)ast_node_gen(node, &gen_err);
+    gen_err_t gen_err;
 
-//     if (!res) {
-//         fprintf(stderr, "%s\n", gen_err.msg);
-//     }
+    res = (table_object_t *)ast_node_gen(node, &gen_err);
 
-//     object_dump(res);
-//     fprintf(stderr, "\n");
+    if (!res) {
+        fprintf(stderr, "%s\n", gen_err.msg);
+    }
 
-//     object_free(res);
-//     ast_node_free(node);
-//     token_list_free(list);
+    object_dump(res);
+    fprintf(stderr, "\n");
+
+    object_free(res);
+    ast_node_free(node);
+    token_list_free(list);
+
+#endif
 
     {
         const char *test_file = "toml/test.toml";

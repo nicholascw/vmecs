@@ -1,7 +1,8 @@
 #ifndef _PROTO_VMESS_TCP_H_
 #define _PROTO_VMESS_TCP_H_
 
-#include <pthread.h>
+#include "pub/fd.h"
+#include "pub/thread.h"
 
 #include "proto/tcp.h"
 #include "proto/buf.h"
@@ -23,11 +24,10 @@ typedef struct {
         target_id_t *target; // used by server
     } addr;
 
-    pthread_t reader, writer;
+    thread_t reader, writer;
+    mutex_t *write_mut;
 
-    pthread_mutex_t write_mut;
-
-    int sock;
+    fd_t sock;
     bool started;
 } vmess_tcp_socket_t;
 

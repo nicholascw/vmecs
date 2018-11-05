@@ -2,8 +2,9 @@
 #include <stdlib.h>
 #include <errno.h>
 
+#include "pub/socket.h"
+
 #include "buf.h"
-#include "socket.h"
 
 rbuffer_t *
 rbuffer_new(size_t init)
@@ -27,7 +28,7 @@ _rbuffer_expand(rbuffer_t *buf)
 }
 
 rbuffer_result_t
-rbuffer_read(rbuffer_t *buf, int fd, decoder_t decoder, void *context, void *result)
+rbuffer_read(rbuffer_t *buf, fd_t fd, decoder_t decoder, void *context, void *result)
 {
     size_t rest;
     ssize_t n_read = 0;
@@ -44,7 +45,7 @@ rbuffer_read(rbuffer_t *buf, int fd, decoder_t decoder, void *context, void *res
             }
 
             rest = buf->size - buf->w_idx;
-            n_read = read_r(fd, buf->buf + buf->w_idx, rest);
+            n_read = fd_read(fd, buf->buf + buf->w_idx, rest);
 
             if (n_read == -1) {
                 return RBUFFER_ERROR;
@@ -98,9 +99,9 @@ vbuffer_new(size_t init)
     vbuffer_t *ret = malloc(sizeof(*ret));
     ASSERT(ret, "out of mem");
 
-    pthread_mutex_init(&ret->mut, NULL);
-    pthread_cond_init(&ret->cond, NULL);
-    pthread_cond_init(&ret->drain, NULL);
+    ret->mut = mutex_new();
+    ret->data = cv_new();
+    ret->drain = cv_new();
 
     ret->size = init > 1 ? init : 1;
     ret->w_idx = 0;
@@ -114,13 +115,13 @@ vbuffer_new(size_t init)
 void
 vbuffer_wait_drain(vbuffer_t *vbuf)
 {
-    pthread_mutex_lock(&vbuf->mut);
+    mutex_lock(vbuf->mut);
 
     while (vbuf->w_idx) {
-        pthread_cond_wait(&vbuf->drain, &vbuf->mut);
+        cv_wait(vbuf->drain, vbuf->mut);
     }
 
-    pthread_mutex_unlock(&vbuf->mut);
+    mutex_unlock(vbuf->mut);
 }
 
 void
@@ -128,12 +129,12 @@ vbuffer_drain(vbuffer_t *vbuf)
 {
     vbuffer_close(vbuf);
 
-    pthread_mutex_lock(&vbuf->mut);
+    mutex_lock(vbuf->mut);
 
     vbuf->w_idx = 0;
-    pthread_cond_broadcast(&vbuf->drain);
+    cv_broadcast(vbuf->drain);
 
-    pthread_mutex_unlock(&vbuf->mut);
+    mutex_unlock(vbuf->mut);
 }
 
 size_t
@@ -141,14 +142,14 @@ vbuffer_read(vbuffer_t *vbuf, byte_t *buf, size_t buf_size)
 {
     size_t n_read;
 
-    pthread_mutex_lock(&vbuf->mut);
+    mutex_lock(vbuf->mut);
 
     while (!vbuf->w_idx && !vbuf->eof) {
-        pthread_cond_wait(&vbuf->cond, &vbuf->mut);
+        cv_wait(vbuf->data, vbuf->mut);
     }
 
     if (!vbuf->w_idx && vbuf->eof) {
-        pthread_mutex_unlock(&vbuf->mut);
+        mutex_unlock(vbuf->mut);
         return 0;
     }
 
@@ -160,10 +161,10 @@ vbuffer_read(vbuffer_t *vbuf, byte_t *buf, size_t buf_size)
     vbuf->w_idx -= n_read;
 
     if (vbuf->w_idx == 0) {
-        pthread_cond_broadcast(&vbuf->drain);
+        cv_broadcast(vbuf->drain);
     }
 
-    pthread_mutex_unlock(&vbuf->mut);
+    mutex_unlock(vbuf->mut);
 
     return n_read;
 }
@@ -178,10 +179,10 @@ _vbuffer_extend(vbuffer_t *vbuf)
 void
 vbuffer_write(vbuffer_t *vbuf, const byte_t *buf, size_t buf_size)
 {
-    pthread_mutex_lock(&vbuf->mut);
+    mutex_lock(vbuf->mut);
 
     if (vbuf->eof) {
-        pthread_mutex_unlock(&vbuf->mut);
+        mutex_unlock(vbuf->mut);
         return;
     }
 
@@ -192,31 +193,31 @@ vbuffer_write(vbuffer_t *vbuf, const byte_t *buf, size_t buf_size)
     memcpy(vbuf->buf + vbuf->w_idx, buf, buf_size);
     vbuf->w_idx += buf_size;
 
-    pthread_cond_broadcast(&vbuf->cond);
+    cv_broadcast(vbuf->data);
 
-    pthread_mutex_unlock(&vbuf->mut);
+    mutex_unlock(vbuf->mut);
 }
 
 void
 vbuffer_close(vbuffer_t *vbuf)
 {
-    pthread_mutex_lock(&vbuf->mut);
+    mutex_lock(vbuf->mut);
 
     if (!vbuf->eof) {
         vbuf->eof = true;
-        pthread_cond_broadcast(&vbuf->cond);
+        cv_broadcast(vbuf->data);
     }
 
-    pthread_mutex_unlock(&vbuf->mut);
+    mutex_unlock(vbuf->mut);
 }
 
 void
 vbuffer_free(vbuffer_t *vbuf)
 {
     if (vbuf) {
-        pthread_mutex_destroy(&vbuf->mut);
-        pthread_cond_destroy(&vbuf->cond);
-        pthread_cond_destroy(&vbuf->drain);
+        mutex_free(vbuf->mut);
+        cv_free(vbuf->data);
+        cv_free(vbuf->drain);
         free(vbuf->buf);
         free(vbuf);
     }

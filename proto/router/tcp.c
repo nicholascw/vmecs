@@ -1,7 +1,7 @@
 #include <time.h>
-#include <pthread.h>
 
 #include "pub/err.h"
+#include "pub/thread.h"
 
 #include "tcp.h"
 
@@ -131,7 +131,7 @@ _tcp_router_handler(void *arg)
     tcp_router_job_t *job = arg;
     target_id_t *target;
 
-    pthread_t reader, writer;
+    thread_t reader, writer;
     int retry = 0;
 
     target = tcp_socket_target(job->in_sock);
@@ -157,11 +157,11 @@ _tcp_router_handler(void *arg)
         }
     }
 
-    pthread_create(&reader, NULL, _tcp_router_reader, job);
-    pthread_create(&writer, NULL, _tcp_router_writer, job);
+    reader = thread_new(_tcp_router_reader, job);
+    writer = thread_new(_tcp_router_writer, job);
 
-    pthread_join(reader, NULL);
-    pthread_join(writer, NULL);
+    thread_join(reader);
+    thread_join(writer);
 
     TRACE("reader/writer joined");
 
@@ -182,7 +182,7 @@ tcp_router(tcp_router_config_t *config,
            tcp_outbound_t *outbound)
 {
     tcp_socket_t *server, *client;
-    pthread_t tid;
+    thread_t tid;
     tcp_router_job_t *job;
 
     TRACE("router started");
@@ -207,7 +207,7 @@ tcp_router(tcp_router_config_t *config,
         job->outbound = outbound;
         job->config = tcp_router_config_copy(config);
 
-        pthread_create(&tid, NULL, _tcp_router_handler, job);
-        pthread_detach(tid);
+        tid = thread_new(_tcp_router_handler, job);
+        thread_detach(tid);
     }
 }

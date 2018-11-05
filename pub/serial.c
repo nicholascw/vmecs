@@ -6,7 +6,7 @@
 
 #define SERIAL_INIT_BUF 8
 
-void serial_init(serial_t *ser, byte_t *buf, size_t size, int copy)
+void serial_init(serial_t *ser, byte_t *buf, size_t size, bool copy)
 {
     ser->cap = ser->size = size;
 
@@ -96,16 +96,16 @@ void serial_write(serial_t *ser, const void *data, size_t size)
     ser->w_idx += size;
 }
 
-int serial_read(serial_t *ser, void *buf, size_t size)
+bool serial_read(serial_t *ser, void *buf, size_t size)
 {
     size_t remain = ser->size - ser->r_idx;
 
-    if (remain < size) return 0;
+    if (remain < size) return false;
 
     if (buf)
         memcpy(buf, ser->buf + ser->r_idx, size);
 
     ser->r_idx += size;
 
-    return 1;
+    return true;
 }

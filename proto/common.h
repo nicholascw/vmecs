@@ -2,11 +2,10 @@
 #define _PROTO_COMMON_H_
 
 #include <string.h>
-#include <arpa/inet.h>
 
 #include "pub/err.h"
 #include "pub/type.h"
-#include "socket.h"
+#include "pub/socket.h"
 
 enum {
     ADDR_TYPE_IPV4 = 1,
@@ -51,14 +50,14 @@ INLINE target_id_t *target_id_copy(const target_id_t *target)
     return ret;
 }
 
-struct addrinfo *target_id_resolve(const target_id_t *target);
+bool target_id_resolve(const target_id_t *target, socket_sockaddr_t *addr);
 void target_id_free(target_id_t *target);
 
 #define TARGET_ID_MAX_DOMAIN 256
 #define TARGET_ID_MAX_PORT 8
 
 INLINE void
-target_id_node(const target_id_t *target, char buf[TARGET_ID_MAX_DOMAIN + 1])
+target_id_node(const target_id_t *target, char buf[TARGET_ID_MAX_DOMAIN])
 {
     switch (target->addr_type) {
         case ADDR_TYPE_DOMAIN:
@@ -76,7 +75,7 @@ target_id_node(const target_id_t *target, char buf[TARGET_ID_MAX_DOMAIN + 1])
 }
 
 INLINE void
-target_id_port(const target_id_t *target, char buf[TARGET_ID_MAX_PORT + 1])
+target_id_port(const target_id_t *target, char buf[TARGET_ID_MAX_PORT])
 {
     sprintf(buf, "%d", target->port);
 }
@@ -85,9 +84,7 @@ INLINE void
 print_target(const target_id_t *target)
 {
     char buf[TARGET_ID_MAX_DOMAIN + 1];
-
     target_id_node(target, buf);
-
     printf("%s:%d\n", buf, target->port);
 }
 

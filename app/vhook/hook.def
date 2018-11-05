@@ -1,8 +1,8 @@
-HOOK(connect, int, (int fd, const struct sockaddr *addr, socklen_t addrlen), {
-    int socktype;
-    int fake_fd;
+HOOK(connect, fd_t, (fd_t fd, const struct sockaddr *addr, socklen_t addrlen), {
+    fd_t fake_fd;
     int flags;
     int fake_flags;
+    int socktype;
     socklen_t optlen;
 
     uint32_t ip;

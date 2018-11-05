@@ -1,9 +1,8 @@
 #ifndef _PROTO_BUF_H_
 #define _PROTO_BUF_H_
 
-#include <pthread.h>
-
 #include "pub/type.h"
+#include "pub/thread.h"
 
 #include "common.h"
 
@@ -24,16 +23,16 @@ rbuffer_t *
 rbuffer_new(size_t init);
 
 rbuffer_result_t
-rbuffer_read(rbuffer_t *buf, int fd, decoder_t decoder, void *context, void *result);
+rbuffer_read(rbuffer_t *buf, fd_t fd, decoder_t decoder, void *context, void *result);
 
 void
 rbuffer_free(rbuffer_t *buf);
 
 // a unidirectional variable buffer
 typedef struct {
-    pthread_mutex_t mut;
-    pthread_cond_t cond;
-    pthread_cond_t drain;
+    mutex_t *mut;
+    cv_t *data;
+    cv_t *drain;
 
     byte_t *buf;
     size_t w_idx;

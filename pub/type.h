@@ -30,7 +30,7 @@ typedef signed long ssize_t;
     INLINE uint##bit##_t be##bit(uint##bit##_t n) \
     { \
         uint##bit##_t ret; \
-        for (int i = 0; i < sizeof(ret); i++) { \
+        for (size_t i = 0; i < sizeof(ret); i++) { \
             ((byte_t *)&ret)[i] = B_AT(n, sizeof(ret) - i - 1); \
         } \
         return ret; \
@@ -59,15 +59,15 @@ from_be16(uint16_t n)
 // }
 
 INLINE void
-hexdump(char *desc, void *addr, int len)
+hexdump(char *desc, void *addr, size_t len)
 {
-    int i;
+    size_t i;
     byte_t buff[17];
     byte_t *pc = (byte_t *)addr;
 
     // Output description if given.
     if (desc != NULL)
-        printf ("%s:\n", desc);
+        printf("%s:\n", desc);
 
     if (len == 0) {
         printf("  ZERO LENGTH\n");
@@ -75,7 +75,7 @@ hexdump(char *desc, void *addr, int len)
     }
 
     if (len < 0) {
-        printf("  NEGATIVE LENGTH: %i\n",len);
+        printf("  NEGATIVE LENGTH: %lu\n", len);
         return;
     }
 
@@ -86,31 +86,32 @@ hexdump(char *desc, void *addr, int len)
         if ((i % 16) == 0) {
             // Just don't print ASCII for the zeroth line.
             if (i != 0)
-                printf ("  %s\n", buff);
+                printf("  %s\n", buff);
 
             // Output the offset.
-            printf ("  %04x ", i);
+            printf("  %04lx ", i);
         }
 
         // Now the hex code for the specific character.
-        printf (" %02x", pc[i]);
+        printf(" %02x", pc[i]);
 
         // And store a printable ASCII character for later.
         if ((pc[i] < 0x20) || (pc[i] > 0x7e))
             buff[i % 16] = '.';
         else
             buff[i % 16] = pc[i];
+
         buff[(i % 16) + 1] = '\0';
     }
 
     // Pad out last line if not exactly 16 characters.
     while ((i % 16) != 0) {
-        printf ("   ");
+        printf("   ");
         i++;
     }
 
     // And print the final ASCII bit.
-    printf ("  %s\n", buff);
+    printf("  %s\n", buff);
 }
 
 #endif

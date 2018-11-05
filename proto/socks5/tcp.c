@@ -1,4 +1,5 @@
-#include "proto/socket.h"
+#include "pub/socket.h"
+
 #include "proto/buf.h"
 
 #include "socks5.h"
@@ -10,48 +11,36 @@ static ssize_t
 _socks5_tcp_socket_read(tcp_socket_t *_sock, byte_t *buf, size_t size)
 {
     socks5_tcp_socket_t *sock = (socks5_tcp_socket_t *)_sock;
-    return read_r(sock->sock, buf, size);
+    return fd_read(sock->sock, buf, size);
 }
 
 static ssize_t
 _socks5_tcp_socket_write(tcp_socket_t *_sock, const byte_t *buf, size_t size)
 {
     socks5_tcp_socket_t *sock = (socks5_tcp_socket_t *)_sock;
-    return write_r(sock->sock, buf, size);
+    return fd_write(sock->sock, buf, size);
 }
 
 static int
 _socks5_tcp_socket_bind(tcp_socket_t *_sock, const char *node, const char *port)
 {
     socks5_tcp_socket_t *sock = (socks5_tcp_socket_t *)_sock;
+    socket_sockaddr_t addr;
 
-    struct addrinfo hints, *list;
-
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_flags = AI_PASSIVE;
-
-    if (getaddrinfo_r(node, port, &hints, &list)) {
+    if (socket_getsockaddr(node, port, &addr)) {
         return -1;
     }
 
     socket_set_reuse_port(sock->sock);
 
-    if (bind(sock->sock, list->ai_addr, list->ai_addrlen)) {
-        perror("bind");
-        freeaddrinfo(list);
-        return -1;
-    }
-
-    freeaddrinfo(list);
-
-    return 0;
+    return socket_bind(sock->sock, &addr);
 }
 
 static int
 _socks5_tcp_socket_listen(tcp_socket_t *_sock, int backlog)
 {
     socks5_tcp_socket_t *sock = (socks5_tcp_socket_t *)_sock;
-    return listen(sock->sock, backlog);
+    return socket_listen(sock->sock, backlog);
 }
 
 static bool
@@ -186,9 +175,9 @@ _socks5_tcp_socket_accept(tcp_socket_t *_sock)
 {
     socks5_tcp_socket_t *sock = (socks5_tcp_socket_t *)_sock;
     socks5_tcp_socket_t *ret;
-    int client;
+    fd_t client;
 
-    client = accept(sock->sock, NULL, NULL);
+    client = socket_accept(sock->sock, NULL);
 
     if (client == -1) {
         return NULL;
@@ -209,20 +198,17 @@ static int
 _socks5_tcp_socket_connect(tcp_socket_t *_sock, const char *node, const char *port)
 {
     socks5_tcp_socket_t *sock = (socks5_tcp_socket_t *)_sock;
-    struct addrinfo *list;
+    socket_sockaddr_t addr;
     target_id_t *target;
+    int ret;
 
     ASSERT(sock->addr.proxy, "socks5 proxy server not set");
 
-    list = target_id_resolve(sock->addr.proxy);
-
-    if (connect(sock->sock, list->ai_addr, list->ai_addrlen)) {
-        perror("connect");
-        freeaddrinfo(list);
+    if (target_id_resolve(sock->addr.proxy, &addr))
         return -1;
-    }
 
-    freeaddrinfo(list);
+    if (socket_connect(sock->sock, &addr))
+        return -1;
 
     target = target_id_parse(node, port);
 
@@ -231,14 +217,10 @@ _socks5_tcp_socket_connect(tcp_socket_t *_sock, const char *node, const char *po
         return -1;
     }
 
-    if (!_socks5_tcp_socket_handshake(sock, target)) {
-        target_id_free(target);
-        return -1;
-    }
-
+    ret = _socks5_tcp_socket_handshake(sock, target);
     target_id_free(target);
 
-    return 0;
+    return ret;
 }
 
 static int
@@ -268,7 +250,7 @@ _socks5_tcp_socket_target(tcp_socket_t *_sock)
 }
 
 socks5_tcp_socket_t *
-socks5_tcp_socket_new_fd(int fd)
+socks5_tcp_socket_new_fd(fd_t fd)
 {
     socks5_tcp_socket_t *ret = malloc(sizeof(*ret));
     ASSERT(ret, "out of mem");
@@ -293,7 +275,7 @@ socks5_tcp_socket_new_fd(int fd)
 socks5_tcp_socket_t *
 socks5_tcp_socket_new()
 {
-    int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    fd_t fd = socket_stream(AF_INET);
     ASSERT(fd != -1, "failed to create socket");
     
     socket_set_timeout(fd, 1);
@@ -301,10 +283,10 @@ socks5_tcp_socket_new()
     return socks5_tcp_socket_new_fd(fd);
 }
 
-int
+fd_t
 socks5_to_socket(socks5_tcp_socket_t *sock)
 {
-    int fd = sock->sock;
+    fd_t fd = sock->sock;
     tcp_socket_free(sock);
     return fd;
 }

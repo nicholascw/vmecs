@@ -12,7 +12,7 @@ typedef struct {
     size_t w_idx;
 } serial_t;
 
-void serial_init(serial_t *ser, byte_t *buf, size_t size, int copy);
+void serial_init(serial_t *ser, byte_t *buf, size_t size, bool copy);
 void serial_destroy(serial_t *ser);
 byte_t *serial_final(serial_t *ser); // no need to call destroy after final
 
@@ -33,7 +33,7 @@ void serial_write_u64(serial_t *ser, uint64_t val);
 void serial_write(serial_t *ser, const void *data, size_t size);
 
 // return 1 if succeed
-int serial_read(serial_t *ser, void *buf, size_t size);
+bool serial_read(serial_t *ser, void *buf, size_t size);
 
 // get current read index/number of bytes read
 INLINE size_t serial_read_idx(serial_t *ser)

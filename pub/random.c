@@ -1,15 +1,16 @@
 #include <time.h>
 #include <stdlib.h>
 
+#include "type.h"
 #include "err.h"
 #include "random.h"
 
-volatile static int init = 0;
+volatile static bool init = false;
 
 void init_random()
 {
     if (!init) {
-        init = 1;
+        init = true;
         srand(time(NULL));
     }
 }

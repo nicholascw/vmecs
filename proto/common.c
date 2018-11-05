@@ -59,22 +59,25 @@ target_id_t *target_id_parse(const char *node, const char *service)
     return target_id_new_domain(node, port);
 }
 
-struct addrinfo *target_id_resolve(const target_id_t *target)
+bool target_id_resolve(const target_id_t *target, socket_sockaddr_t *addr)
 {
-    char buf[TARGET_ID_MAX_DOMAIN + 1];
-    char port[TARGET_ID_MAX_PORT + 1];
-    struct addrinfo hints, *res;
+    char port[TARGET_ID_MAX_PORT];
+    
+    switch (target->addr_type) {
+        case ADDR_TYPE_IPV4:
+            socket_sockaddr_ipv4(target->addr.ipv4, target->port, addr);
+            return true;
 
-    target_id_node(target, buf);
-    target_id_port(target, port);
+        case ADDR_TYPE_DOMAIN:
+            target_id_port(target, port);
+            return socket_getsockaddr(target->addr.domain, port, addr) == 0;
 
-    memset(&hints, 0, sizeof(hints));
-
-    if (getaddrinfo_r(buf, port, &hints, &res)) {
-        return NULL;
+        case ADDR_TYPE_IPV6:
+            socket_sockaddr_ipv6(target->addr.ipv6, target->port, addr);
+            return true;
     }
 
-    return res;
+    ASSERT(0, "unsupported address type");
 }
 
 void target_id_free(target_id_t *target)

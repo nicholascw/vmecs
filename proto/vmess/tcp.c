@@ -1,8 +1,7 @@
-#include <pthread.h>
-
 #include "pub/type.h"
+#include "pub/thread.h"
+#include "pub/socket.h"
 
-#include "proto/socket.h"
 #include "proto/buf.h"
 
 #include "tcp.h"
@@ -30,40 +29,22 @@ static int
 _vmess_tcp_socket_bind(tcp_socket_t *_sock, const char *node, const char *port)
 {
     vmess_tcp_socket_t *sock = (vmess_tcp_socket_t *)_sock;
-
-    struct addrinfo hints, *list;
-
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_flags = AI_PASSIVE;
+    socket_sockaddr_t addr;
     
-    if (getaddrinfo_r(node, port, &hints, &list)) {
+    if (socket_getsockaddr(node, port, &addr)) {
         return -1;
     }
     
     socket_set_reuse_port(sock->sock);
 
-    if (bind(sock->sock, list->ai_addr, list->ai_addrlen)) {
-        perror("bind");
-        freeaddrinfo(list);
-        return -1;
-    }
-
-    freeaddrinfo(list);
-
-    return 0;
+    return socket_bind(sock->sock, &addr);
 }
 
 static int
 _vmess_tcp_socket_listen(tcp_socket_t *_sock, int backlog)
 {
     vmess_tcp_socket_t *sock = (vmess_tcp_socket_t *)_sock;
-
-    if (listen(sock->sock, backlog)) {
-        perror("listen");
-        return -1;
-    }
-
-    return 0;
+    return socket_listen(sock->sock, backlog);
 }
 
 static void
@@ -76,7 +57,7 @@ _vmess_tcp_socket_free(tcp_socket_t *_sock)
     vmess_config_free(sock->config);
     vmess_serial_free(sock->vser);
     target_id_free(sock->addr.proxy);
-    pthread_mutex_destroy(&sock->write_mut);
+    mutex_free(sock->write_mut);
     
     free(sock);
 }
@@ -101,15 +82,15 @@ _vmess_tcp_socket_close(tcp_socket_t *_sock)
 
     // write mutex is here to ensure all data is written
     // before the end chunk is sent
-    pthread_mutex_lock(&sock->write_mut);
-    write_r(sock->sock, trunk, size);
-    pthread_mutex_unlock(&sock->write_mut);
+    mutex_lock(sock->write_mut);
+    fd_write(sock->sock, trunk, size);
+    mutex_unlock(sock->write_mut);
 
     // TRACE("end written");
 
     if (sock->started) {
-        pthread_join(sock->reader, NULL);
-        pthread_join(sock->writer, NULL);
+        thread_join(sock->reader);
+        thread_join(sock->writer);
     }
 
     if (close(sock->sock)) {
@@ -160,7 +141,7 @@ _vmess_tcp_socket_handshake(vmess_tcp_socket_t *sock, target_id_t *target)
         vmess_serial_response(vser, sock->config, &resp);
 
         while ((trunk = vmess_serial_digest(vser, &size))) {
-            write_r(sock->sock, trunk, size);
+            fd_write(sock->sock, trunk, size);
             free(trunk);
         }
 
@@ -183,7 +164,7 @@ _vmess_tcp_socket_handshake(vmess_tcp_socket_t *sock, target_id_t *target)
         vmess_serial_request(vser, sock->config, &req);
 
         while ((trunk = vmess_serial_digest(vser, &size))) {
-            write_r(sock->sock, trunk, size);
+            fd_write(sock->sock, trunk, size);
             free(trunk);
         }
 
@@ -274,13 +255,13 @@ _vmess_tcp_socket_writer(void *arg)
 
     while (1) {
         // TRACE("writer waiting for lock");
-        pthread_mutex_lock(&sock->write_mut);
+        mutex_lock(sock->write_mut);
 
         size = vbuffer_read(sock->write_buf, buf, RBUF_SIZE);
 
         // TRACE("writer got new data");
         if (!size) {
-            pthread_mutex_unlock(&sock->write_mut);
+            mutex_unlock(sock->write_mut);
             break;
         }
 
@@ -289,7 +270,7 @@ _vmess_tcp_socket_writer(void *arg)
             
             // flush all
             while ((trunk = vmess_serial_digest(sock->vser, &size))) {
-                if (write_r(sock->sock, trunk, size) == -1) {
+                if (fd_write(sock->sock, trunk, size) == -1) {
                     end = true;
                 }
 
@@ -297,7 +278,7 @@ _vmess_tcp_socket_writer(void *arg)
             }
         }
 
-        pthread_mutex_unlock(&sock->write_mut);
+        mutex_unlock(sock->write_mut);
 
         // TRACE("chunk written");
     }
@@ -310,16 +291,16 @@ _vmess_tcp_socket_writer(void *arg)
 }
 
 static vmess_tcp_socket_t *
-_vmess_tcp_socket_new_fd(vmess_config_t *config, int fd);
+_vmess_tcp_socket_new_fd(vmess_config_t *config, fd_t fd);
 
 static tcp_socket_t *
 _vmess_tcp_socket_accept(tcp_socket_t *_sock)
 {
     vmess_tcp_socket_t *sock = (vmess_tcp_socket_t *)_sock;
     vmess_tcp_socket_t *ret;
-    int client;
+    fd_t client;
 
-    client = accept(sock->sock, NULL, NULL);
+    client = socket_accept(sock->sock, NULL);
 
     if (client == -1) {
         return NULL;
@@ -333,8 +314,8 @@ _vmess_tcp_socket_accept(tcp_socket_t *_sock)
         return NULL;
     }
 
-    pthread_create(&ret->reader, NULL, _vmess_tcp_socket_reader, ret);
-    pthread_create(&ret->writer, NULL, _vmess_tcp_socket_writer, ret);
+    ret->reader = thread_new(_vmess_tcp_socket_reader, ret);
+    ret->writer = thread_new(_vmess_tcp_socket_writer, ret);
 
     ret->started = true;
 
@@ -345,20 +326,16 @@ static int
 _vmess_tcp_socket_connect(tcp_socket_t *_sock, const char *node, const char *port)
 {
     vmess_tcp_socket_t *sock = (vmess_tcp_socket_t *)_sock;
-    struct addrinfo *list;
+    socket_sockaddr_t addr;
     target_id_t *target;
 
     ASSERT(sock->addr.proxy, "proxy server not set");
 
-    list = target_id_resolve(sock->addr.proxy);
-
-    if (connect(sock->sock, list->ai_addr, list->ai_addrlen)) {
-        perror("connect");
-        freeaddrinfo(list);
+    if (!target_id_resolve(sock->addr.proxy, &addr))
         return -1;
-    }
 
-    freeaddrinfo(list);
+    if (socket_connect(sock->sock, &addr))
+        return -1;
 
     target = target_id_parse(node, port);
 
@@ -374,8 +351,8 @@ _vmess_tcp_socket_connect(tcp_socket_t *_sock, const char *node, const char *por
 
     target_id_free(target);
 
-    pthread_create(&sock->reader, NULL, _vmess_tcp_socket_reader, sock);
-    pthread_create(&sock->writer, NULL, _vmess_tcp_socket_writer, sock);
+    sock->reader = thread_new(_vmess_tcp_socket_reader, sock);
+    sock->writer = thread_new(_vmess_tcp_socket_writer, sock);
 
     sock->started = true;
 
@@ -391,7 +368,7 @@ _vmess_tcp_socket_target(tcp_socket_t *_sock)
 }
 
 static vmess_tcp_socket_t *
-_vmess_tcp_socket_new_fd(vmess_config_t *config, int fd)
+_vmess_tcp_socket_new_fd(vmess_config_t *config, fd_t fd)
 {
     vmess_tcp_socket_t *ret = malloc(sizeof(*ret));
     ASSERT(ret, "out of mem");
@@ -405,7 +382,7 @@ _vmess_tcp_socket_new_fd(vmess_config_t *config, int fd)
     ret->addr.target = NULL;
     ret->vser = NULL;
 
-    pthread_mutex_init(&ret->write_mut, NULL);
+    ret->write_mut = mutex_new();
 
     ret->read_func = _vmess_tcp_socket_read;
     ret->write_func = _vmess_tcp_socket_write;
@@ -426,7 +403,7 @@ _vmess_tcp_socket_new_fd(vmess_config_t *config, int fd)
 vmess_tcp_socket_t *
 vmess_tcp_socket_new(vmess_config_t *config)
 {
-    int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    fd_t fd = socket_stream(AF_INET);
     ASSERT(fd != -1, "failed to create socket");
 
     socket_set_timeout(fd, 1);

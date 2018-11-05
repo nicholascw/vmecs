@@ -6,8 +6,8 @@
 #include <string.h>
 
 #include "pub/type.h"
+#include "pub/socket.h"
 
-#include "proto/socket.h"
 #include "proto/socks5/tcp.h"
 
 #include "hook.h"

@@ -4,6 +4,8 @@
 #include <signal.h>
 
 #include "pub/type.h"
+#include "pub/fd.h"
+
 #include "toml/toml.h"
 #include "crypto/hash.h"
 
@@ -335,7 +337,7 @@ load_router_config(toml_object_t *config)
 void sigpipe_handler(int sig)
 {
     const char msg[] = "pipe broken\n";
-    write(STDERR_FILENO, msg, sizeof(msg) - 1);
+    fd_write(STDERR_FILENO, (byte_t *)msg, sizeof(msg) - 1);
 }
 
 int main(int argc, const char **argv)

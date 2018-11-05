@@ -1,7 +1,8 @@
 #include <time.h>
 
+#include "pub/socket.h"
+
 #include "proto/common.h"
-#include "proto/socket.h"
 
 #include "socks5.h"
 #include "inbound.h"
