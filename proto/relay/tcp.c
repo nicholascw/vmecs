@@ -8,27 +8,27 @@
 #define DEFAULT_BACKLOG 1024
 #define DEFAULT_BUFFER (8 * 1024)
 
-tcp_router_config_t *
-tcp_router_config_new_default()
+tcp_relay_config_t *
+tcp_relay_config_new_default()
 {
-    tcp_router_config_t *ret = malloc(sizeof(*ret));
+    tcp_relay_config_t *ret = malloc(sizeof(*ret));
     ASSERT(ret, "out of mem");
 
-    ret->max_connect_retry = TCP_ROUTER_DEFAULT_MAX_CONNECT_RETRY;
+    ret->max_connect_retry = TCP_RELAY_DEFAULT_MAX_CONNECT_RETRY;
 
     return ret;
 }
 
 void
-tcp_router_config_free(tcp_router_config_t *config)
+tcp_relay_config_free(tcp_relay_config_t *config)
 {
     free(config);
 }
 
-tcp_router_config_t *
-tcp_router_config_copy(tcp_router_config_t *config)
+tcp_relay_config_t *
+tcp_relay_config_copy(tcp_relay_config_t *config)
 {
-    tcp_router_config_t *ret = malloc(sizeof(*ret));
+    tcp_relay_config_t *ret = malloc(sizeof(*ret));
     ASSERT(ret, "out of mem");
 
     memcpy(ret, config, sizeof(*ret));
@@ -41,13 +41,13 @@ typedef struct {
     tcp_socket_t *out_sock;
     tcp_outbound_t *outbound;
 
-    tcp_router_config_t *config;
-} tcp_router_job_t;
+    tcp_relay_config_t *config;
+} tcp_relay_job_t;
 
 static void *
-_tcp_router_reader(void *arg)
+_tcp_relay_reader(void *arg)
 {
-    tcp_router_job_t *job = arg;
+    tcp_relay_job_t *job = arg;
     byte_t *buf;
     ssize_t n_read;
     ssize_t n_write;
@@ -71,9 +71,9 @@ _tcp_router_reader(void *arg)
         }
     }
 
-    TRACE("router reader closing");
+    TRACE("relay reader closing");
     tcp_socket_close(job->in_sock);
-    TRACE("router reader closed"); 
+    TRACE("relay reader closed"); 
 
     free(buf);
 
@@ -81,9 +81,9 @@ _tcp_router_reader(void *arg)
 }
 
 static void *
-_tcp_router_writer(void *arg)
+_tcp_relay_writer(void *arg)
 {
-    tcp_router_job_t *job = arg;
+    tcp_relay_job_t *job = arg;
     byte_t *buf;
     ssize_t n_read;
     ssize_t n_write;
@@ -107,9 +107,9 @@ _tcp_router_writer(void *arg)
         }
     }
 
-    TRACE("router writer closing");
+    TRACE("relay writer closing");
     tcp_socket_close(job->out_sock);
-    TRACE("router writer closed");
+    TRACE("relay writer closed");
 
     free(buf);
     
@@ -117,18 +117,18 @@ _tcp_router_writer(void *arg)
 }
 
 static void
-_tcp_router_job_free(tcp_router_job_t *job)
+_tcp_relay_job_free(tcp_relay_job_t *job)
 {
     if (job) {
-        tcp_router_config_free(job->config);
+        tcp_relay_config_free(job->config);
         free(job);
     }
 }
 
 static void *
-_tcp_router_handler(void *arg)
+_tcp_relay_handler(void *arg)
 {
-    tcp_router_job_t *job = arg;
+    tcp_relay_job_t *job = arg;
     target_id_t *target;
 
     thread_t reader, writer;
@@ -149,7 +149,7 @@ _tcp_router_handler(void *arg)
             tcp_socket_free(job->in_sock);
             
             target_id_free(target);
-            _tcp_router_job_free(job);
+            _tcp_relay_job_free(job);
             
             TRACE("connection failed");
 
@@ -157,8 +157,8 @@ _tcp_router_handler(void *arg)
         }
     }
 
-    reader = thread_new(_tcp_router_reader, job);
-    writer = thread_new(_tcp_router_writer, job);
+    reader = thread_new(_tcp_relay_reader, job);
+    writer = thread_new(_tcp_relay_writer, job);
 
     thread_join(reader);
     thread_join(writer);
@@ -169,7 +169,7 @@ _tcp_router_handler(void *arg)
     tcp_socket_free(job->out_sock);
     
     target_id_free(target);
-    _tcp_router_job_free(job);
+    _tcp_relay_job_free(job);
 
     TRACE("connection closed");
 
@@ -177,37 +177,37 @@ _tcp_router_handler(void *arg)
 }
 
 void
-tcp_router(tcp_router_config_t *config,
-           tcp_inbound_t *inbound,
-           tcp_outbound_t *outbound)
+tcp_relay(tcp_relay_config_t *config,
+          tcp_inbound_t *inbound,
+          tcp_outbound_t *outbound)
 {
     tcp_socket_t *server, *client;
     thread_t tid;
-    tcp_router_job_t *job;
+    tcp_relay_job_t *job;
 
-    TRACE("router started");
+    TRACE("relay started");
 
     server = tcp_inbound_server(inbound);
 
     tcp_socket_listen(server, DEFAULT_BACKLOG);
 
-    TRACE("router started listening");
+    TRACE("relay started listening");
 
     while (1) {
         client = tcp_socket_accept(server);
 
         if (!client) continue;
 
-        TRACE("router accepted client %p", (void *)client);
+        TRACE("relay accepted client %p", (void *)client);
 
         job = malloc(sizeof(*job));
         ASSERT(job, "out of mem");
         job->in_sock = client;
         job->out_sock = NULL;
         job->outbound = outbound;
-        job->config = tcp_router_config_copy(config);
+        job->config = tcp_relay_config_copy(config);
 
-        tid = thread_new(_tcp_router_handler, job);
+        tid = thread_new(_tcp_relay_handler, job);
         thread_detach(tid);
     }
 }

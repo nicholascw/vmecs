@@ -9,7 +9,7 @@
 #include "toml/toml.h"
 #include "crypto/hash.h"
 
-#include "proto/router/tcp.h"
+#include "proto/relay/tcp.h"
 
 #include "proto/vmess/vmess.h"
 #include "proto/vmess/inbound.h"
@@ -328,10 +328,10 @@ load_outbound(toml_object_t *config)
     return NULL;
 }
 
-tcp_router_config_t *
-load_router_config(toml_object_t *config)
+tcp_relay_config_t *
+load_relay_config(toml_object_t *config)
 {
-    return tcp_router_config_new_default();
+    return tcp_relay_config_new_default();
 }
 
 void sigpipe_handler(int sig)
@@ -344,7 +344,7 @@ int main(int argc, const char **argv)
 {
     toml_object_t *config;
 
-    tcp_router_config_t *router_config;
+    tcp_relay_config_t *relay_config;
 
     tcp_inbound_t *inbound;
     tcp_outbound_t *outbound;
@@ -365,24 +365,24 @@ int main(int argc, const char **argv)
 
     inbound = load_inbound(config);
     outbound = load_outbound(config);
-    router_config = load_router_config(config);
+    relay_config = load_relay_config(config);
 
     if (!inbound || !outbound) {
         fprintf(stderr, "failed to load inbound/outbound\n");
 
         tcp_inbound_free(inbound);
         tcp_outbound_free(outbound);
-        tcp_router_config_free(router_config);
+        tcp_relay_config_free(relay_config);
 
         toml_free(config);
         return 1;
     }
 
-    tcp_router(router_config, inbound, outbound);
+    tcp_relay(relay_config, inbound, outbound);
 
     tcp_inbound_free(inbound);
     tcp_outbound_free(outbound);
-    tcp_router_config_free(router_config);
+    tcp_relay_config_free(relay_config);
 
     toml_free(config);
 

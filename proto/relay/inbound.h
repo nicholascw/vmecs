@@ -1,5 +1,5 @@
-#ifndef _PROTO_ROUTER_INBOUND_H_
-#define _PROTO_ROUTER_INBOUND_H_
+#ifndef _PROTO_RELAY_INBOUND_H_
+#define _PROTO_RELAY_INBOUND_H_
 
 #include "pub/type.h"
 

@@ -5,7 +5,7 @@
 #include "proto/vmess/outbound.h"
 #include "proto/vmess/vmess.h"
 #include "proto/vmess/tcp.h"
-#include "proto/router/tcp.h"
+#include "proto/relay/tcp.h"
 
 data128_t user_id;
 

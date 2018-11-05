@@ -3,7 +3,7 @@
 
 #include "pub/type.h"
 
-#include "proto/router/inbound.h"
+#include "proto/relay/inbound.h"
 
 #include "vmess.h"
 

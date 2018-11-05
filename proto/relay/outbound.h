@@ -1,5 +1,5 @@
-#ifndef _PROTO_ROUTER_OUTBOUND_H_
-#define _PROTO_ROUTER_OUTBOUND_H_
+#ifndef _PROTO_RELAY_OUTBOUND_H_
+#define _PROTO_RELAY_OUTBOUND_H_
 
 #include "pub/type.h"
 

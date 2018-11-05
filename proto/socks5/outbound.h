@@ -3,7 +3,7 @@
 
 #include "pub/type.h"
 
-#include "proto/router/outbound.h"
+#include "proto/relay/outbound.h"
 
 #include "socks5.h"
 

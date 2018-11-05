@@ -5,7 +5,7 @@
 #include "proto/socks5/outbound.h"
 #include "proto/socks5/socks5.h"
 #include "proto/socks5/tcp.h"
-#include "proto/router/tcp.h"
+#include "proto/relay/tcp.h"
 
 int main()
 {

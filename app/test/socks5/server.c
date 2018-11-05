@@ -9,7 +9,7 @@
 
 #include "proto/native/outbound.h"
 
-#include "proto/router/tcp.h"
+#include "proto/relay/tcp.h"
 
 int main()
 {
@@ -19,18 +19,18 @@ int main()
     socks5_tcp_inbound_t *inbound;
     native_tcp_outbound_t *outbound;
 
-    tcp_router_config_t *router_conf;
+    tcp_relay_config_t *relay_conf;
 
     local = target_id_new_ipv4((byte_t[]) { 0, 0, 0, 0 }, 3133);
 
-    router_conf = tcp_router_config_new_default();
+    relay_conf = tcp_relay_config_new_default();
     inbound = socks5_tcp_inbound_new(local);
     outbound = native_tcp_outbound_new();
 
-    tcp_router(router_conf, (tcp_inbound_t *)inbound, (tcp_outbound_t *)outbound);
+    tcp_relay(relay_conf, (tcp_inbound_t *)inbound, (tcp_outbound_t *)outbound);
 
     target_id_free(local);
-    tcp_router_config_free(router_conf);
+    tcp_relay_config_free(relay_conf);
 
     tcp_inbound_free(inbound);
     tcp_outbound_free(outbound);
