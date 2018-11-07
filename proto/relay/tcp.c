@@ -134,6 +134,16 @@ _tcp_relay_handler(void *arg)
     thread_t reader, writer;
     int retry = 0;
 
+    if (tcp_socket_handshake(job->in_sock)) {
+        tcp_socket_close(job->in_sock);
+        tcp_socket_free(job->in_sock);
+        _tcp_relay_job_free(job);
+
+        TRACE("handshake failed");
+
+        return NULL;
+    }
+
     target = tcp_socket_target(job->in_sock);
     print_target("request", target);
 

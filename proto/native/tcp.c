@@ -51,6 +51,12 @@ _native_tcp_socket_accept(tcp_socket_t *_sock)
 }
 
 static int
+_native_tcp_socket_handshake(tcp_socket_t *_sock)
+{
+    return 0;
+}
+
+static int
 _native_tcp_socket_connect(tcp_socket_t *_sock, const char *node, const char *port)
 {
     native_tcp_socket_t *sock = (native_tcp_socket_t *)_sock;
@@ -87,6 +93,7 @@ native_tcp_socket_new_fd(fd_t fd)
     ret->bind_func = _native_tcp_socket_bind;
     ret->listen_func = _native_tcp_socket_listen;
     ret->accept_func = _native_tcp_socket_accept;
+    ret->handshake_func = _native_tcp_socket_handshake;
     ret->connect_func = _native_tcp_socket_connect;
     ret->close_func = _native_tcp_socket_close;
     ret->free_func = _native_tcp_socket_free;

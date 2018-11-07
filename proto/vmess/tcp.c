@@ -101,7 +101,7 @@ _vmess_tcp_socket_close(tcp_socket_t *_sock)
 }
 
 static bool
-_vmess_tcp_socket_handshake(vmess_tcp_socket_t *sock, target_id_t *target)
+_vmess_tcp_socket_handshake_c(vmess_tcp_socket_t *sock, target_id_t *target)
 {
     rbuffer_t *rbuf;
 
@@ -305,19 +305,27 @@ _vmess_tcp_socket_accept(tcp_socket_t *_sock)
     }
 
     ret = _vmess_tcp_socket_new_fd(sock->config, client);
-    
-    if (!_vmess_tcp_socket_handshake(ret, NULL)) {
-        tcp_socket_close((tcp_socket_t *)ret);
-        tcp_socket_free((tcp_socket_t *)ret);
-        return NULL;
-    }
-
-    ret->reader = thread_new(_vmess_tcp_socket_reader, ret);
-    ret->writer = thread_new(_vmess_tcp_socket_writer, ret);
-
-    ret->started = true;
 
     return (tcp_socket_t *)ret;
+}
+
+static int
+_vmess_tcp_socket_handshake(tcp_socket_t *_sock)
+{
+    vmess_tcp_socket_t *sock = (vmess_tcp_socket_t *)_sock;
+
+    if (!_vmess_tcp_socket_handshake_c(sock, NULL)) {
+        // tcp_socket_close((tcp_socket_t *)ret);
+        // tcp_socket_free((tcp_socket_t *)ret);
+        return -1;
+    }
+
+    sock->reader = thread_new(_vmess_tcp_socket_reader, sock);
+    sock->writer = thread_new(_vmess_tcp_socket_writer, sock);
+
+    sock->started = true;
+    
+    return 0;
 }
 
 static int
@@ -342,7 +350,7 @@ _vmess_tcp_socket_connect(tcp_socket_t *_sock, const char *node, const char *por
         return -1;
     }
 
-    if (!_vmess_tcp_socket_handshake(sock, target)) {
+    if (!_vmess_tcp_socket_handshake_c(sock, target)) {
         target_id_free(target);
         return -1;
     }
@@ -387,6 +395,7 @@ _vmess_tcp_socket_new_fd(vmess_config_t *config, fd_t fd)
     ret->bind_func = _vmess_tcp_socket_bind;
     ret->listen_func = _vmess_tcp_socket_listen;
     ret->accept_func = _vmess_tcp_socket_accept;
+    ret->handshake_func = _vmess_tcp_socket_handshake;
     ret->connect_func = _vmess_tcp_socket_connect;
     ret->close_func = _vmess_tcp_socket_close;
     ret->free_func = _vmess_tcp_socket_free;

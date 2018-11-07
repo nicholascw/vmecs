@@ -10,6 +10,7 @@
     tcp_socket_bind_t bind_func; \
     tcp_socket_listen_t listen_func; \
     tcp_socket_accept_t accept_func; \
+    tcp_socket_handshake_t handshake_func; \
     tcp_socket_connect_t connect_func; \
     tcp_socket_close_t close_func; \
     tcp_socket_free_t free_func; \
@@ -23,6 +24,7 @@ typedef ssize_t (*tcp_socket_write_t)(struct tcp_socket_t_tag *sock, const byte_
 typedef int (*tcp_socket_bind_t)(struct tcp_socket_t_tag *sock, const char *node, const char *port);
 typedef int (*tcp_socket_listen_t)(struct tcp_socket_t_tag *sock, int backlog);
 typedef struct tcp_socket_t_tag *(*tcp_socket_accept_t)(struct tcp_socket_t_tag *sock);
+typedef int (*tcp_socket_handshake_t)(struct tcp_socket_t_tag *sock);
 
 typedef int (*tcp_socket_connect_t)(struct tcp_socket_t_tag *sock, const char *node, const char *port);
 
@@ -66,6 +68,13 @@ INLINE void *
 tcp_socket_accept(void *sock)
 {
     return ((tcp_socket_t *)sock)->accept_func(sock);
+}
+
+// original accept is splitted into accept and handshake
+INLINE int
+tcp_socket_handshake(void *sock)
+{
+    return ((tcp_socket_t *)sock)->handshake_func(sock);
 }
 
 INLINE int

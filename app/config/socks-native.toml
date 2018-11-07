@@ -1,6 +1,6 @@
 [inbound]
     proto = "socks"
-    local = "0.0.0.0"
+    local = "127.0.0.1"
     port = "3133"
 
 [outbound]

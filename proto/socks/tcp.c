@@ -45,7 +45,7 @@ _socks_tcp_socket_listen(tcp_socket_t *_sock, int backlog)
 }
 
 static bool
-_socks_tcp_socket_handshake(socks_tcp_socket_t *sock, target_id_t *target)
+_socks_tcp_socket_handshake_c(socks_tcp_socket_t *sock, target_id_t *target)
 {
     data_trunk_t auth_sel;
     byte_t auth_ack;
@@ -270,14 +270,19 @@ _socks_tcp_socket_accept(tcp_socket_t *_sock)
     TRACE("accepted connection");
 
     ret = socks_tcp_socket_new_fd(sock->socks_vers, client);
-    
-    if (!_socks_tcp_socket_handshake(ret, NULL)) {
-        tcp_socket_close((tcp_socket_t *)ret);
-        tcp_socket_free((tcp_socket_t *)ret);
-        return NULL;
-    }
 
     return (tcp_socket_t *)ret;
+}
+
+static int
+_socks_tcp_socket_handshake(tcp_socket_t *_sock)
+{
+    socks_tcp_socket_t *sock = (socks_tcp_socket_t *)_sock;
+
+    if (!_socks_tcp_socket_handshake_c(sock, NULL))
+        return -1;
+    else
+        return 0;
 }
 
 static int
@@ -308,7 +313,7 @@ _socks_tcp_socket_connect(tcp_socket_t *_sock, const char *node, const char *por
 
     print_target("handshaking", target);
 
-    if (!_socks_tcp_socket_handshake(sock, target)) {
+    if (!_socks_tcp_socket_handshake_c(sock, target)) {
         target_id_free(target);
         return -1;
     }
@@ -357,6 +362,7 @@ socks_tcp_socket_new_fd(int socks_vers, fd_t fd)
     ret->bind_func = _socks_tcp_socket_bind;
     ret->listen_func = _socks_tcp_socket_listen;
     ret->accept_func = _socks_tcp_socket_accept;
+    ret->handshake_func = _socks_tcp_socket_handshake;
     ret->connect_func = _socks_tcp_socket_connect;
     ret->close_func = _socks_tcp_socket_close;
     ret->free_func = _socks_tcp_socket_free;
