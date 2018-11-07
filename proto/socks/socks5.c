@@ -11,7 +11,7 @@ socks5_encode_auth_sel(const byte_t *supported, byte_t len, size_t *size_p)
     byte_t *res = malloc(len + 2);
     ASSERT(res, "out of mem");
 
-    res[0] = SOCKS5_VER;
+    res[0] = SOCKS5_VERSION;
     res[1] = len;
     memcpy(res + 2, supported, len);
 
@@ -26,7 +26,7 @@ socks5_encode_auth_ack(byte_t method, size_t *size_p)
     byte_t *res = malloc(2);
     ASSERT(res, "out of mem");
 
-    res[0] = SOCKS5_VER;
+    res[0] = SOCKS5_VERSION;
     res[1] = method;
 
     if (size_p) *size_p = 2;
@@ -42,7 +42,7 @@ socks5_encode_request(const socks5_request_t *req, size_t *size_p)
 
     serial_init(&ser, NULL, 0, 0);
 
-    serial_write_u8(&ser, SOCKS5_VER);
+    serial_write_u8(&ser, SOCKS5_VERSION);
     serial_write_u8(&ser, req->cmd);
     serial_write_u8(&ser, 0); // resv
 
@@ -83,7 +83,7 @@ socks5_encode_response(const socks5_response_t *resp, size_t *size_p)
 
     serial_init(&ser, NULL, 0, 0);
 
-    serial_write_u8(&ser, SOCKS5_VER);
+    serial_write_u8(&ser, SOCKS5_VERSION);
     serial_write_u8(&ser, resp->rep);
     serial_write_u8(&ser, 0); // resv
     serial_write_u8(&ser, SOCKS5_ADDR_TYPE_IPV4);
@@ -107,8 +107,8 @@ socks5_decode_auth_sel(data_trunk_t *trunk,
         return 0;
     }
 
-    if (data[0] != SOCKS5_VER) {
-        TRACE("wrong version %d", data[0]);
+    if (data[0] != SOCKS5_VERSION) {
+        TRACE("wrong socks5 version %d", data[0]);
         return -1; // wrong version
     }
 
@@ -141,7 +141,7 @@ socks5_decode_auth_ack(byte_t *method,
         return 0;
     }
 
-    if (data[0] != SOCKS5_VER) {
+    if (data[0] != SOCKS5_VERSION) {
         return -1; // invlaid version
     }
 
@@ -181,7 +181,7 @@ socks5_decode_request(socks5_request_t *req,
     serial_init(&ser, (byte_t *)data, size, 1);
 
     if (!serial_read(&ser, &ver, 1)) DECODE_FAIL(0);
-    if (ver != SOCKS5_VER) DECODE_FAIL(-1);
+    if (ver != SOCKS5_VERSION) DECODE_FAIL(-1);
 
     if (!serial_read(&ser, &cmd, 1)) DECODE_FAIL(0);
     if (!serial_read(&ser, &resv, 1)) DECODE_FAIL(0);
@@ -265,7 +265,7 @@ socks5_decode_response(socks5_response_t *resp,
     serial_init(&ser, (byte_t *)data, size, 1);
 
     if (!serial_read(&ser, &ver, 1)) DECODE_FAIL(0);
-    if (ver != SOCKS5_VER) DECODE_FAIL(-1);
+    if (ver != SOCKS5_VERSION) DECODE_FAIL(-1);
 
     if (!serial_read(&ser, &rep, 1)) DECODE_FAIL(0);
     if (!serial_read(&ser, &resv, 1)) DECODE_FAIL(0);

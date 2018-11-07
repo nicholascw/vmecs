@@ -2,15 +2,15 @@
 
 #include "pub/type.h"
 
-#include "proto/socks5/outbound.h"
-#include "proto/socks5/socks5.h"
-#include "proto/socks5/tcp.h"
+#include "proto/socks/outbound.h"
+#include "proto/socks/socks5.h"
+#include "proto/socks/tcp.h"
 #include "proto/relay/tcp.h"
 
 int main()
 {
     target_id_t *proxy;
-    socks5_tcp_socket_t *sock;
+    socks_tcp_socket_t *sock;
     
     byte_t data[] = 
         "GET / HTTP/1.1\r\n"
@@ -23,9 +23,9 @@ int main()
 
     proxy = target_id_new_ipv4((byte_t []) { 127, 0, 0, 1 }, 3133);
 
-    sock = socks5_tcp_socket_new();
+    sock = socks_tcp_socket_new(SOCKS_VERSION_5);
 
-    socks5_tcp_socket_set_proxy(sock, proxy);
+    socks_tcp_socket_set_proxy(sock, proxy);
 
     while (tcp_socket_connect(sock, "www.google.com", "80")) {
         sleep(1);

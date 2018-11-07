@@ -145,8 +145,6 @@ _vmess_tcp_socket_handshake(vmess_tcp_socket_t *sock, target_id_t *target)
             free(trunk);
         }
 
-        // print_target(req.target);
-
         vmess_tcp_socket_set_target(sock, req.target);
         vmess_request_destroy(&req);
     } else {

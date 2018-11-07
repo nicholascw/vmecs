@@ -8,7 +8,7 @@
 #include "pub/type.h"
 #include "pub/socket.h"
 
-#include "proto/socks5/tcp.h"
+#include "proto/socks/tcp.h"
 
 #include "hook.h"
 

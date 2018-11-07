@@ -16,14 +16,14 @@ target_id_t *_target_id_new(byte_t type, uint16_t port)
     return id;
 }
 
-target_id_t *target_id_new_ipv4(uint8_t addr[4], uint16_t port)
+target_id_t *target_id_new_ipv4(const uint8_t addr[4], uint16_t port)
 {
     target_id_t *id = _target_id_new(ADDR_TYPE_IPV4, port);
     memcpy(id->addr.ipv4, addr, sizeof(id->addr.ipv4));
     return id;
 }
 
-target_id_t *target_id_new_ipv6(uint8_t addr[16], uint16_t port)
+target_id_t *target_id_new_ipv6(const uint8_t addr[16], uint16_t port)
 {
     target_id_t *id = _target_id_new(ADDR_TYPE_IPV6, port);
     memcpy(id->addr.ipv6, addr, sizeof(id->addr.ipv6));

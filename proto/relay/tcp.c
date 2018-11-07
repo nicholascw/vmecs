@@ -5,7 +5,7 @@
 
 #include "tcp.h"
 
-#define DEFAULT_BACKLOG 1024
+#define DEFAULT_BACKLOG 128
 #define DEFAULT_BUFFER (8 * 1024)
 
 tcp_relay_config_t *
@@ -135,7 +135,7 @@ _tcp_relay_handler(void *arg)
     int retry = 0;
 
     target = tcp_socket_target(job->in_sock);
-    print_target(target);
+    print_target("request", target);
 
     while (!(job->out_sock = tcp_outbound_client(job->outbound, target))) {
         perror("connect");

@@ -27,6 +27,17 @@ _rbuffer_expand(rbuffer_t *buf)
     buf->buf = realloc(buf->buf, buf->size);
 }
 
+void
+rbuffer_push(rbuffer_t *buf, const byte_t *data, size_t size)
+{
+    while (buf->w_idx + size >= buf->size) {
+        _rbuffer_expand(buf);
+    }
+
+    memcpy(buf->buf + buf->w_idx, data, size);
+    buf->w_idx += size;
+}
+
 rbuffer_result_t
 rbuffer_read(rbuffer_t *buf, fd_t fd, decoder_t decoder, void *context, void *result)
 {

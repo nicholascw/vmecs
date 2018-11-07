@@ -15,8 +15,9 @@
 #include "proto/vmess/inbound.h"
 #include "proto/vmess/outbound.h"
 
-#include "proto/socks5/inbound.h"
-#include "proto/socks5/outbound.h"
+#include "proto/socks/inbound.h"
+#include "proto/socks/outbound.h"
+#include "proto/socks/tcp.h"
 
 #include "proto/native/outbound.h"
 
@@ -229,30 +230,45 @@ tcp_outbound_t *vmess_outbound_builder(toml_object_t *config)
     return (tcp_outbound_t *)outbound;
 }
 
-tcp_inbound_t *socks5_inbound_builder(toml_object_t *config)
+tcp_inbound_t *socks_inbound_builder(toml_object_t *config)
 {
     target_id_t *local;
-    socks5_tcp_inbound_t *inbound;
+    socks_tcp_inbound_t *inbound;
     
     local = load_inbound_param(config);
     if (!local) return NULL;
 
-    inbound = socks5_tcp_inbound_new(local);
+    inbound = socks_tcp_inbound_new(local);
 
     target_id_free(local);
 
     return (tcp_inbound_t *)inbound;
 }
 
-tcp_outbound_t *socks5_outbound_builder(toml_object_t *config)
+tcp_outbound_t *socks4_outbound_builder(toml_object_t *config)
 {
     target_id_t *proxy;
-    socks5_tcp_outbound_t *outbound;
+    socks_tcp_outbound_t *outbound;
     
     proxy = load_outbound_param(config);
     if (!proxy) return NULL;
 
-    outbound = socks5_tcp_outbound_new(proxy);
+    outbound = socks_tcp_outbound_new(proxy, SOCKS_VERSION_4);
+
+    target_id_free(proxy);
+
+    return (tcp_outbound_t *)outbound;
+}
+
+tcp_outbound_t *socks5_outbound_builder(toml_object_t *config)
+{
+    target_id_t *proxy;
+    socks_tcp_outbound_t *outbound;
+    
+    proxy = load_outbound_param(config);
+    if (!proxy) return NULL;
+
+    outbound = socks_tcp_outbound_new(proxy, SOCKS_VERSION_5);
 
     target_id_free(proxy);
 
@@ -270,7 +286,9 @@ struct {
     outbound_builder_t out_build;
 } proto_map[] = {
     { "vmess", vmess_inbound_builder, vmess_outbound_builder },
-    { "socks5", socks5_inbound_builder, socks5_outbound_builder },
+    { "socks", socks_inbound_builder, NULL },
+    { "socks4", socks_inbound_builder, socks4_outbound_builder },
+    { "socks5", socks_inbound_builder, socks5_outbound_builder },
     { "native", NULL, native_outbound_builder }
 };
 

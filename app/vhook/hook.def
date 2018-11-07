@@ -8,7 +8,7 @@ HOOK(connect, fd_t, (fd_t fd, const struct sockaddr *addr, socklen_t addrlen), {
     uint32_t ip;
     uint16_t port;
 
-    socks5_tcp_socket_t *sock;
+    socks_tcp_socket_t *sock;
 
     target_id_t *target;
 
@@ -28,9 +28,9 @@ HOOK(connect, fd_t, (fd_t fd, const struct sockaddr *addr, socklen_t addrlen), {
 
     // proxy = target_id_new_ipv4((byte_t []) { 127, 0, 0, 1 }, 3133);
     target = target_id_new_ipv4((byte_t *)&ip, port);
-    sock = socks5_tcp_socket_new();
+    sock = socks_tcp_socket_new(SOCKS_VERSION_ANY);
 
-    socks5_tcp_socket_set_proxy(sock, target_proxy);
+    socks_tcp_socket_set_proxy(sock, target_proxy);
 
     if (tcp_socket_connect_target(sock, target)) {
         perror("failed to connect to proxy");
@@ -45,8 +45,7 @@ HOOK(connect, fd_t, (fd_t fd, const struct sockaddr *addr, socklen_t addrlen), {
         return -1;
     }
 
-    fprintf(stderr, "connected ");
-    print_target(target);
+    print_target("connected", target);
 
     proxy_on = true;
 
@@ -54,7 +53,7 @@ HOOK(connect, fd_t, (fd_t fd, const struct sockaddr *addr, socklen_t addrlen), {
 
     // substitute the original fd
 
-    fake_fd = socks5_to_socket(sock);
+    fake_fd = socks_to_socket(sock);
 
     flags = fcntl(fd, F_GETFL, 0);
     fake_flags = fcntl(fake_fd, F_GETFL, 0);

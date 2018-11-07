@@ -49,6 +49,34 @@ typedef struct {
 
 #define socket_freeaddrinfo freeaddrinfo
 
+INLINE uint16_t
+socket_sockaddr_port(socket_sockaddr_t *addr)
+{
+    switch (addr->addr.ss_family) {
+        case AF_INET:
+            return ntohs(((struct sockaddr_in *)&addr->addr)->sin_port);
+
+        case AF_INET6:
+            return ntohs(((struct sockaddr_in6 *)&addr->addr)->sin6_port);
+
+        default:
+            ASSERT(0, "unsupported sockaddr family");
+    }
+}
+
+INLINE bool
+socket_sockaddr_is_ipv4(socket_sockaddr_t *addr)
+{
+    return addr->addr.ss_family == AF_INET;
+}
+
+INLINE const uint8_t *
+socket_sockaddr_get_ipv4(socket_sockaddr_t *addr)
+{
+    ASSERT(socket_sockaddr_is_ipv4(addr), "sockaddr not ipv4");
+    return (uint8_t *)&((struct sockaddr_in *)&addr->addr)->sin_addr.s_addr;
+}
+
 // port in host endianness
 INLINE void
 socket_sockaddr_ipv4(const uint8_t ip[4], uint16_t port, socket_sockaddr_t *addr)

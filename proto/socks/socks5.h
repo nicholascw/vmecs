@@ -1,5 +1,5 @@
-#ifndef _PROTO_SOCKS5_SOCKS5_H_
-#define _PROTO_SOCKS5_SOCKS5_H_
+#ifndef _PROTO_SOCKS_SOCKS5_H_
+#define _PROTO_SOCKS_SOCKS5_H_
 
 /*
 
@@ -39,7 +39,7 @@ server:
 #include "pub/type.h"
 #include "proto/common.h"
 
-#define SOCKS5_VER 5
+#define SOCKS5_VERSION 5
 
 enum {
     SOCKS5_AUTH_METHOD_NO_AUTH = 0

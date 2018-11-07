@@ -30,8 +30,8 @@ typedef struct {
     byte_t addr_type;
 } target_id_t;
 
-target_id_t *target_id_new_ipv4(uint8_t addr[4], uint16_t port);
-target_id_t *target_id_new_ipv6(uint8_t addr[16], uint16_t port);
+target_id_t *target_id_new_ipv4(const uint8_t addr[4], uint16_t port);
+target_id_t *target_id_new_ipv6(const uint8_t addr[16], uint16_t port);
 target_id_t *target_id_new_domain(const char *domain, uint64_t port);
 
 target_id_t *target_id_parse(const char *node, const char *service);
@@ -81,11 +81,11 @@ target_id_port(const target_id_t *target, char buf[TARGET_ID_MAX_PORT])
 }
 
 INLINE void
-print_target(const target_id_t *target)
+print_target(const char *prompt, const target_id_t *target)
 {
     char buf[TARGET_ID_MAX_DOMAIN + 1];
     target_id_node(target, buf);
-    printf("%s:%d\n", buf, target->port);
+    printf("%s: %s:%d\n", prompt, buf, target->port);
 }
 
 typedef struct {

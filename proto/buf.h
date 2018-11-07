@@ -26,6 +26,9 @@ rbuffer_result_t
 rbuffer_read(rbuffer_t *buf, fd_t fd, decoder_t decoder, void *context, void *result);
 
 void
+rbuffer_push(rbuffer_t *buf, const byte_t *data, size_t size);
+
+void
 rbuffer_free(rbuffer_t *buf);
 
 // a unidirectional variable buffer
