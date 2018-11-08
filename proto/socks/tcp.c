@@ -259,7 +259,7 @@ _socks_tcp_socket_accept(tcp_socket_t *_sock)
     socks_tcp_socket_t *ret;
     fd_t client;
 
-    TRACE("accepting");
+    // TRACE("accepting");
 
     client = socket_accept(sock->sock, NULL);
 
@@ -267,7 +267,7 @@ _socks_tcp_socket_accept(tcp_socket_t *_sock)
         return NULL;
     }
 
-    TRACE("accepted connection");
+    // TRACE("accepted connection");
 
     ret = socks_tcp_socket_new_fd(sock->socks_vers, client);
 

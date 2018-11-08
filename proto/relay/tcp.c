@@ -71,9 +71,9 @@ _tcp_relay_reader(void *arg)
         }
     }
 
-    TRACE("relay reader closing");
+    // TRACE("relay reader closing");
     tcp_socket_close(job->in_sock);
-    TRACE("relay reader closed"); 
+    // TRACE("relay reader closed"); 
 
     free(buf);
 
@@ -107,9 +107,9 @@ _tcp_relay_writer(void *arg)
         }
     }
 
-    TRACE("relay writer closing");
+    // TRACE("relay writer closing");
     tcp_socket_close(job->out_sock);
-    TRACE("relay writer closed");
+    // TRACE("relay writer closed");
 
     free(buf);
     
@@ -155,17 +155,19 @@ _tcp_relay_handler(void *arg)
         if (retry >= job->config->max_connect_retry) {
             // retry failed, clean up an go
 
+            print_target("connection failed", target);
+
             tcp_socket_close(job->in_sock);
             tcp_socket_free(job->in_sock);
             
             target_id_free(target);
             _tcp_relay_job_free(job);
-            
-            TRACE("connection failed");
 
             return NULL;
         }
     }
+
+    print_target("connected", target);
 
     reader = thread_new(_tcp_relay_reader, job);
     writer = thread_new(_tcp_relay_writer, job);
@@ -173,7 +175,7 @@ _tcp_relay_handler(void *arg)
     thread_join(reader);
     thread_join(writer);
 
-    TRACE("reader/writer joined");
+    // TRACE("reader/writer joined");
 
     tcp_socket_free(job->in_sock);
     tcp_socket_free(job->out_sock);
@@ -208,7 +210,7 @@ tcp_relay(tcp_relay_config_t *config,
 
         if (!client) continue;
 
-        TRACE("relay accepted client %p", (void *)client);
+        // TRACE("relay accepted client %p", (void *)client);
 
         job = malloc(sizeof(*job));
         ASSERT(job, "out of mem");

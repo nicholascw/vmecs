@@ -229,7 +229,7 @@ _vmess_tcp_socket_reader(void *arg)
         }
     }
 
-    TRACE("reader exited %p", (void *)sock);
+    // TRACE("reader exited %p", (void *)sock);
 
     rbuffer_free(rbuf);
 
@@ -281,7 +281,7 @@ _vmess_tcp_socket_writer(void *arg)
         // TRACE("chunk written");
     }
 
-    TRACE("writer exited %p", (void *)sock);
+    // TRACE("writer exited %p", (void *)sock);
 
     // vbuffer closed
 
