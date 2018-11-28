@@ -15,7 +15,7 @@ typedef struct etcp_relay_conn_t_tag {
 
     struct etcp_relay_conn_t_tag *pair;
 
-    int nclosed;
+    // int nclosed;
 } etcp_relay_conn_t;
 
 static etcp_relay_conn_t *
@@ -32,7 +32,7 @@ etcp_relay_conn_new(fd_t in_fd, fd_t out_fd, tcp_socket_t *in, tcp_socket_t *out
 
     ret->pair = NULL;
 
-    ret->nclosed = 0;
+    // ret->nclosed = 0;
 
     return ret;
 }
@@ -156,17 +156,10 @@ etcp_handle(epoll_t epfd, tcp_outbound_t *outbound, etcp_relay_conn_t *conn)
                 }
             } else if (res == 0) {
                 // in_sock is closed
-
-                // if (++conn->nclosed == 2) {
-                // both sides are closed
-                // TRACE("closing 2");
                 etcp_remove_conn(epfd, conn);
-                // }
-
                 break;
             } else if (res == -1) {
                 // error, close connection
-                // TRACE("closing");
                 etcp_remove_conn(epfd, conn);
                 break;
             } else if (res == -2) {

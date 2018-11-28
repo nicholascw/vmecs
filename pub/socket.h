@@ -129,7 +129,7 @@ socket_getsockaddr(const char *node, const char *service, socket_sockaddr_t *add
     int err;
 
     if ((err = socket_getaddrinfo(node, service, NULL, &res))) {
-        socket_freeaddrinfo(res);
+        // socket_freeaddrinfo(res);
         return err;
     }
 
