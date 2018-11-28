@@ -9,10 +9,13 @@
 
 #include "vmess.h"
 
+// TODO: not thread-safe
+
 typedef struct {
     TCP_SOCKET_HEADER
     vbuffer_t *read_buf; // client read from here
-    vbuffer_t *write_buf; // client write to here
+    rbuffer_t *raw_buf;
+    // vbuffer_t *write_buf; // client write to here
 
     vmess_auth_t auth;
     vmess_serial_t *vser;
@@ -24,11 +27,11 @@ typedef struct {
         target_id_t *target; // used by server
     } addr;
 
-    thread_t reader, writer;
-    mutex_t *write_mut;
+    // thread_t reader; // , writer;
+    // mutex_t *write_mut;
 
     fd_t sock;
-    bool started;
+    // bool started;
 } vmess_tcp_socket_t;
 
 vmess_tcp_socket_t *

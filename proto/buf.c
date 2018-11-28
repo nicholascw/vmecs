@@ -149,6 +149,29 @@ vbuffer_drain(vbuffer_t *vbuf)
 }
 
 size_t
+vbuffer_try_read(vbuffer_t *vbuf, byte_t *buf, size_t buf_size)
+{
+    size_t n_read;
+
+    mutex_lock(vbuf->mut);
+
+    if (vbuf->w_idx) {
+        n_read = buf_size > vbuf->w_idx ? vbuf->w_idx : buf_size;
+
+        memcpy(buf, vbuf->buf, n_read);
+        memmove(vbuf->buf, vbuf->buf + n_read, vbuf->w_idx - n_read);
+
+        vbuf->w_idx -= n_read;
+    } else {
+        n_read = 0;
+    }
+
+    mutex_unlock(vbuf->mut);
+
+    return n_read;
+}
+
+size_t
 vbuffer_read(vbuffer_t *vbuf, byte_t *buf, size_t buf_size)
 {
     size_t n_read;

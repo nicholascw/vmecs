@@ -55,6 +55,9 @@ vbuffer_wait_drain(vbuffer_t *vbuf);
 void
 vbuffer_drain(vbuffer_t *vbuf);
 
+size_t
+vbuffer_try_read(vbuffer_t *vbuf, byte_t *buf, size_t buf_size);
+
 // may block if no data is ready
 size_t
 vbuffer_read(vbuffer_t *vbuf, byte_t *buf, size_t buf_size);
