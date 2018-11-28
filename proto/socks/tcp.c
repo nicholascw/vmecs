@@ -16,6 +16,13 @@ _socks_tcp_socket_read(tcp_socket_t *_sock, byte_t *buf, size_t size)
 }
 
 static ssize_t
+_socks_tcp_socket_try_read(tcp_socket_t *_sock, byte_t *buf, size_t size)
+{
+    socks_tcp_socket_t *sock = (socks_tcp_socket_t *)_sock;
+    return fd_try_read(sock->sock, buf, size);
+}
+
+static ssize_t
 _socks_tcp_socket_write(tcp_socket_t *_sock, const byte_t *buf, size_t size)
 {
     socks_tcp_socket_t *sock = (socks_tcp_socket_t *)_sock;
@@ -325,6 +332,12 @@ _socks_tcp_socket_connect(tcp_socket_t *_sock, const char *node, const char *por
     return 0;
 }
 
+static fd_t
+_socks_tcp_socket_revent(tcp_socket_t *_sock)
+{
+    return ((socks_tcp_socket_t *)_sock)->sock;
+}
+
 static int
 _socks_tcp_socket_close(tcp_socket_t *_sock)
 {
@@ -358,12 +371,14 @@ socks_tcp_socket_new_fd(int socks_vers, fd_t fd)
     ASSERT(ret, "out of mem");
 
     ret->read_func = _socks_tcp_socket_read;
+    ret->try_read_func = _socks_tcp_socket_try_read;
     ret->write_func = _socks_tcp_socket_write;
     ret->bind_func = _socks_tcp_socket_bind;
     ret->listen_func = _socks_tcp_socket_listen;
     ret->accept_func = _socks_tcp_socket_accept;
     ret->handshake_func = _socks_tcp_socket_handshake;
     ret->connect_func = _socks_tcp_socket_connect;
+    ret->revent_func = _socks_tcp_socket_revent;
     ret->close_func = _socks_tcp_socket_close;
     ret->free_func = _socks_tcp_socket_free;
     ret->target_func = _socks_tcp_socket_target;

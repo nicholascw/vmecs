@@ -10,6 +10,7 @@
 #include "crypto/hash.h"
 
 #include "proto/relay/tcp.h"
+#include "proto/relay/etcp.h"
 
 #include "proto/vmess/vmess.h"
 #include "proto/vmess/inbound.h"
@@ -396,7 +397,8 @@ int main(int argc, const char **argv)
         return 1;
     }
 
-    tcp_relay(relay_config, inbound, outbound);
+    // tcp_relay(relay_config, inbound, outbound);
+    tcp_relay_epoll(relay_config, inbound, outbound);
 
     tcp_inbound_free(inbound);
     tcp_outbound_free(outbound);

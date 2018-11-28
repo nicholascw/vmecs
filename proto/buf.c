@@ -39,6 +39,47 @@ rbuffer_push(rbuffer_t *buf, const byte_t *data, size_t size)
 }
 
 rbuffer_result_t
+rbuffer_try_read(rbuffer_t *buf, fd_t fd, decoder_t decoder, void *context, void *result)
+{
+    size_t rest;
+    ssize_t n_read;
+    ssize_t n_decoded;
+
+    // read all we have
+    do {
+        if (buf->w_idx >= buf->size) {
+            _rbuffer_expand(buf);
+        }
+
+        rest = buf->size - buf->w_idx;
+        n_read = fd_try_read(fd, buf->buf + buf->w_idx, rest);
+
+        // TRACE("n_read %ld", n_read);
+
+        if (n_read == -1) return RBUFFER_ERROR;
+        else if (n_read == -2) break;
+        else {
+            buf->w_idx += n_read;
+        }
+    } while (n_read > 0);
+
+    n_decoded = decoder(context, result, buf->buf, buf->w_idx);
+
+    if (n_decoded == 0) {
+        // no enough data
+        return RBUFFER_INCOMPLETE;
+    } else if (n_decoded == -1) {
+        // error
+        return RBUFFER_ERROR;
+    } else {
+        // success
+        buf->w_idx -= n_decoded;
+        memmove(buf->buf, buf->buf + n_decoded, buf->w_idx);
+        return RBUFFER_SUCCESS;
+    }
+}
+
+rbuffer_result_t
 rbuffer_read(rbuffer_t *buf, fd_t fd, decoder_t decoder, void *context, void *result)
 {
     size_t rest;

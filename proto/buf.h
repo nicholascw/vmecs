@@ -25,6 +25,11 @@ rbuffer_new(size_t init);
 rbuffer_result_t
 rbuffer_read(rbuffer_t *buf, fd_t fd, decoder_t decoder, void *context, void *result);
 
+// non-blocking read
+// will drain existing data in the fd
+rbuffer_result_t
+rbuffer_try_read(rbuffer_t *buf, fd_t fd, decoder_t decoder, void *context, void *result);
+
 void
 rbuffer_push(rbuffer_t *buf, const byte_t *data, size_t size);
 

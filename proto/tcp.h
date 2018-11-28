@@ -6,12 +6,14 @@
 
 #define TCP_SOCKET_HEADER \
     tcp_socket_read_t read_func; \
+    tcp_socket_try_read_t try_read_func; \
     tcp_socket_write_t write_func; \
     tcp_socket_bind_t bind_func; \
     tcp_socket_listen_t listen_func; \
     tcp_socket_accept_t accept_func; \
     tcp_socket_handshake_t handshake_func; \
     tcp_socket_connect_t connect_func; \
+    tcp_socket_revent_t revent_func; \
     tcp_socket_close_t close_func; \
     tcp_socket_free_t free_func; \
     tcp_socket_target_t target_func; /* optional*/
@@ -19,6 +21,7 @@
 struct tcp_socket_t_tag;
 
 typedef ssize_t (*tcp_socket_read_t)(struct tcp_socket_t_tag *sock, byte_t *buf, size_t size);
+typedef ssize_t (*tcp_socket_try_read_t)(struct tcp_socket_t_tag *sock, byte_t *buf, size_t size);
 typedef ssize_t (*tcp_socket_write_t)(struct tcp_socket_t_tag *sock, const byte_t *buf, size_t size);
 
 typedef int (*tcp_socket_bind_t)(struct tcp_socket_t_tag *sock, const char *node, const char *port);
@@ -27,6 +30,8 @@ typedef struct tcp_socket_t_tag *(*tcp_socket_accept_t)(struct tcp_socket_t_tag 
 typedef int (*tcp_socket_handshake_t)(struct tcp_socket_t_tag *sock);
 
 typedef int (*tcp_socket_connect_t)(struct tcp_socket_t_tag *sock, const char *node, const char *port);
+
+typedef fd_t (*tcp_socket_revent_t)(struct tcp_socket_t_tag *sock);
 
 typedef target_id_t *(*tcp_socket_target_t)(struct tcp_socket_t_tag *sock);
 
@@ -44,6 +49,13 @@ INLINE ssize_t
 tcp_socket_read(void *sock, byte_t *buf, size_t size)
 {
     return ((tcp_socket_t *)sock)->read_func(sock, buf, size);
+}
+
+// non-blocking read
+INLINE ssize_t
+tcp_socket_try_read(void *sock, byte_t *buf, size_t size)
+{
+    return ((tcp_socket_t *)sock)->try_read_func(sock, buf, size);
 }
 
 INLINE ssize_t
@@ -81,6 +93,13 @@ INLINE int
 tcp_socket_connect(void *sock, const char *node, const char *port)
 {
     return ((tcp_socket_t *)sock)->connect_func(sock, node, port);
+}
+
+// return a fd for listening to read event
+INLINE fd_t
+tcp_socket_revent(void *sock)
+{
+    return ((tcp_socket_t *)sock)->revent_func(sock);
 }
 
 INLINE int

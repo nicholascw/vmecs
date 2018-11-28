@@ -10,6 +10,13 @@ _native_tcp_socket_read(tcp_socket_t *_sock, byte_t *buf, size_t size)
 }
 
 static ssize_t
+_native_tcp_socket_try_read(tcp_socket_t *_sock, byte_t *buf, size_t size)
+{
+    native_tcp_socket_t *sock = (native_tcp_socket_t *)_sock;
+    return fd_try_read(sock->sock, buf, size);
+}
+
+static ssize_t
 _native_tcp_socket_write(tcp_socket_t *_sock, const byte_t *buf, size_t size)
 {
     native_tcp_socket_t *sock = (native_tcp_socket_t *)_sock;
@@ -68,6 +75,12 @@ _native_tcp_socket_connect(tcp_socket_t *_sock, const char *node, const char *po
     return socket_connect(sock->sock, &addr);
 }
 
+static fd_t
+_native_tcp_socket_revent(tcp_socket_t *_sock)
+{
+    return ((native_tcp_socket_t *)_sock)->sock;
+}
+
 static int
 _native_tcp_socket_close(tcp_socket_t *_sock)
 {
@@ -89,12 +102,14 @@ native_tcp_socket_new_fd(fd_t fd)
     ASSERT(ret, "out of mem");
 
     ret->read_func = _native_tcp_socket_read;
+    ret->try_read_func = _native_tcp_socket_try_read;
     ret->write_func = _native_tcp_socket_write;
     ret->bind_func = _native_tcp_socket_bind;
     ret->listen_func = _native_tcp_socket_listen;
     ret->accept_func = _native_tcp_socket_accept;
     ret->handshake_func = _native_tcp_socket_handshake;
     ret->connect_func = _native_tcp_socket_connect;
+    ret->revent_func = _native_tcp_socket_revent;
     ret->close_func = _native_tcp_socket_close;
     ret->free_func = _native_tcp_socket_free;
     ret->target_func = NULL;

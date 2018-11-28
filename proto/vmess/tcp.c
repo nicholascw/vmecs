@@ -10,17 +10,25 @@
 #define TCP_DEFAULT_BUF 4096
 #define RBUF_SIZE 4096
 
-static ssize_t
-_vmess_tcp_socket_read(tcp_socket_t *_sock, byte_t *buf, size_t size)
+INLINE ssize_t
+_vmess_tcp_socket_read_c(tcp_socket_t *_sock, byte_t *buf, size_t size, bool block)
 {
     vmess_tcp_socket_t *sock = (vmess_tcp_socket_t *)_sock;
     data_trunk_t trunk;
+    rbuffer_result_t res;
 
     ssize_t ret = vbuffer_try_read(sock->read_buf, buf, size);
 
     if (!ret) {
-        switch (rbuffer_read(sock->raw_buf, sock->sock, vmess_data_decoder,
-                            VMESS_DECODER_CTX(sock->config, &sock->auth), &trunk)) {
+        if (block) {
+            res = rbuffer_read(sock->raw_buf, sock->sock, vmess_data_decoder,
+                               VMESS_DECODER_CTX(sock->config, &sock->auth), &trunk);
+        } else {
+            res = rbuffer_try_read(sock->raw_buf, sock->sock, vmess_data_decoder,
+                                   VMESS_DECODER_CTX(sock->config, &sock->auth), &trunk);
+        }
+
+        switch (res) {
             case RBUFFER_SUCCESS:
                 // hexdump("data read", trunk.data, trunk.size);
 
@@ -49,13 +57,25 @@ _vmess_tcp_socket_read(tcp_socket_t *_sock, byte_t *buf, size_t size)
                 break;
 
             case RBUFFER_INCOMPLETE:
-                TRACE("incomplete data");
-                ret = -1;
+                // TRACE("incomplete data");
+                ret = -2;
                 break;
         }
     }
 
     return ret;
+}
+
+static ssize_t
+_vmess_tcp_socket_try_read(tcp_socket_t *_sock, byte_t *buf, size_t size)
+{
+    return _vmess_tcp_socket_read_c(_sock, buf, size, false);
+}
+
+static ssize_t
+_vmess_tcp_socket_read(tcp_socket_t *_sock, byte_t *buf, size_t size)
+{
+    return _vmess_tcp_socket_read_c(_sock, buf, size, true);
 }
 
 static ssize_t
@@ -288,6 +308,12 @@ _vmess_tcp_socket_connect(tcp_socket_t *_sock, const char *node, const char *por
     return 0;
 }
 
+static fd_t
+_vmess_tcp_socket_revent(tcp_socket_t *_sock)
+{
+    return ((vmess_tcp_socket_t *)_sock)->sock;
+}
+
 static target_id_t *
 _vmess_tcp_socket_target(tcp_socket_t *_sock)
 {
@@ -310,12 +336,14 @@ _vmess_tcp_socket_new_fd(vmess_config_t *config, fd_t fd)
     ret->vser = NULL;
 
     ret->read_func = _vmess_tcp_socket_read;
+    ret->try_read_func = _vmess_tcp_socket_try_read;
     ret->write_func = _vmess_tcp_socket_write;
     ret->bind_func = _vmess_tcp_socket_bind;
     ret->listen_func = _vmess_tcp_socket_listen;
     ret->accept_func = _vmess_tcp_socket_accept;
     ret->handshake_func = _vmess_tcp_socket_handshake;
     ret->connect_func = _vmess_tcp_socket_connect;
+    ret->revent_func = _vmess_tcp_socket_revent;
     ret->close_func = _vmess_tcp_socket_close;
     ret->free_func = _vmess_tcp_socket_free;
     ret->target_func = _vmess_tcp_socket_target;
