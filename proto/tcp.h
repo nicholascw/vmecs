@@ -20,6 +20,7 @@
 
 struct tcp_socket_t_tag;
 
+// these three functions should be thread-safe
 typedef ssize_t (*tcp_socket_read_t)(struct tcp_socket_t_tag *sock, byte_t *buf, size_t size);
 typedef ssize_t (*tcp_socket_try_read_t)(struct tcp_socket_t_tag *sock, byte_t *buf, size_t size);
 typedef ssize_t (*tcp_socket_write_t)(struct tcp_socket_t_tag *sock, const byte_t *buf, size_t size);

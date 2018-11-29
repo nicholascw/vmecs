@@ -1,10 +1,13 @@
 #include "pub/err.h"
 #include "pub/epoll.h"
+#include "pub/thread.h"
 
 #include "etcp.h"
 
 #define DEFAULT_BACKLOG 128
 #define DEFAULT_BUFFER (8 * 1024)
+
+#define EPOLL_TIMEOUT 1
 
 typedef struct etcp_relay_conn_t_tag {
     fd_t in_fd;
@@ -17,6 +20,13 @@ typedef struct etcp_relay_conn_t_tag {
 
     // int nclosed;
 } etcp_relay_conn_t;
+
+typedef struct {
+    epoll_t epfd;
+    tcp_outbound_t *outbound;
+    size_t id;
+    bool stop;
+} etcp_job_t;
 
 static etcp_relay_conn_t *
 etcp_relay_conn_new(fd_t in_fd, fd_t out_fd, tcp_socket_t *in, tcp_socket_t *out)
@@ -67,7 +77,7 @@ etcp_remove_conn(epoll_t epfd, etcp_relay_conn_t *conn)
 }
 
 static void
-etcp_handle(epoll_t epfd, tcp_outbound_t *outbound, etcp_relay_conn_t *conn)
+etcp_handle(epoll_t epfd, tcp_outbound_t *outbound, etcp_relay_conn_t *conn, size_t id)
 {
     tcp_socket_t *new_in, *new_out;
     etcp_relay_conn_t *conn1, *conn2;
@@ -97,6 +107,7 @@ etcp_handle(epoll_t epfd, tcp_outbound_t *outbound, etcp_relay_conn_t *conn)
             }
 
             target = tcp_socket_target(new_in);
+            fprintf(stderr, "thread %ld: ", id);
             print_target("request", target);
 
             if (!(new_out = tcp_outbound_client(outbound, target))) {
@@ -143,79 +154,109 @@ etcp_handle(epoll_t epfd, tcp_outbound_t *outbound, etcp_relay_conn_t *conn)
         buf = malloc(DEFAULT_BUFFER);
         ASSERT(buf, "out of mem");
 
-        while (1) {
+        do {
             res = tcp_socket_try_read(conn->in_sock, buf, DEFAULT_BUFFER);
-
             // TRACE("read %ld", res);
-
-            if (res > 0) {
-                if (tcp_socket_write(conn->out_sock, buf, res) <= 0) {
-                    // TRACE("write failed");
-                    etcp_remove_conn(epfd, conn);
-                    break;
-                }
-            } else if (res == 0) {
-                // in_sock is closed
-                etcp_remove_conn(epfd, conn);
-                break;
-            } else if (res == -1) {
-                // error, close connection
-                etcp_remove_conn(epfd, conn);
-                break;
-            } else if (res == -2) {
-                // no more data to read, finish handler
-                break;
-            }
-        }
+        } while (res > 0 && tcp_socket_write(conn->out_sock, buf, res) > 0);
 
         free(buf);
+
+        if (res != -2) {
+            etcp_remove_conn(epfd, conn);
+        }
     }
 }
 
-void
-tcp_relay_epoll(tcp_relay_config_t *config,
-                tcp_inbound_t *inbound,
-                tcp_outbound_t *outbound)
+// every thread has its own epoll instance
+static void *
+etcp_worker(void *arg)
 {
-    tcp_socket_t *server;
-    fd_t server_fd;
-
-    epoll_t epfd;
+    etcp_job_t *job = arg;
     epoll_event_t event;
 
     int res;
 
-    TRACE("relay started");
-
-    server = tcp_inbound_server(inbound);
-
-    tcp_socket_listen(server, DEFAULT_BACKLOG);
-
-    TRACE("relay started listening");
-
-    server_fd = tcp_socket_revent(server);
-
-    // set up epoll
-    epfd = fd_epoll_create();
-
-    event = (epoll_event_t) {
-        .events = FD_EPOLL_READ,
-        .data = {
-            .ptr = etcp_relay_conn_new(server_fd, -1, server, NULL)
-        }
-    };
-
-    fd_epoll_ctl(epfd, FD_EPOLL_ADD, server_fd, &event);
-
-    while (1) {
-        res = fd_epoll_wait(epfd, &event, 1, -1);
+    while (!job->stop) {
+        res = fd_epoll_wait(job->epfd, &event, 1, -1);
 
         if (res > 0) {
-            // TRACE("handle start");
-            etcp_handle(epfd, outbound, event.data.ptr);
+            // TRACE("thread %ld", job->id);
+            etcp_handle(job->epfd, job->outbound, event.data.ptr, job->id);
             // TRACE("handle end");
         } else if (res == -1) {
             perror("epoll_wait");
         }
     }
+
+    return NULL;
+}
+
+void
+tcp_relay_epoll(tcp_relay_config_t *config,
+                tcp_inbound_t *inbound,
+                tcp_outbound_t *outbound,
+                size_t nthread)
+{
+    etcp_job_t *jobs;
+    thread_t *threads;
+    tcp_socket_t **servers;
+
+    size_t i;
+    fd_t server_fd;
+    epoll_t epfd;
+    epoll_event_t event;
+
+    // create threads
+    jobs = malloc(sizeof(*jobs) * nthread);
+    threads = malloc(sizeof(*threads) * nthread);
+    servers = malloc(sizeof(*servers) * nthread);
+
+    ASSERT(jobs, "out of mem");
+    ASSERT(threads, "out of mem");
+    ASSERT(servers, "out of mem");
+
+    for (i = 0; i < nthread; i++) {
+        TRACE("starting thread %ld", i);
+
+        servers[i] = tcp_inbound_server(inbound);
+
+        ASSERT(servers[i], "failed to start server");
+
+        tcp_socket_listen(servers[i], DEFAULT_BACKLOG);
+
+        server_fd = tcp_socket_revent(servers[i]);
+
+        epfd = fd_epoll_create();
+        ASSERT(epfd != -1, "failed to create epoll instance");
+
+        event = (epoll_event_t) {
+            .events = FD_EPOLL_READ,
+            .data = {
+                .ptr = etcp_relay_conn_new(server_fd, -1, servers[i], NULL)
+            }
+        };
+
+        fd_epoll_ctl(epfd, FD_EPOLL_ADD, server_fd, &event);
+
+        jobs[i] = (etcp_job_t) {
+            .epfd = epfd,
+            .outbound = outbound,
+            .id = i,
+            .stop = false
+        };
+
+        threads[i] = thread_new(etcp_worker, jobs + i);
+    }
+
+    for (i = 0; i < nthread; i++) {
+        thread_join(threads[i]);
+
+        tcp_socket_close(servers[i]);
+        tcp_socket_free(servers[i]);
+    }
+
+    free(jobs);
+    free(threads);
+
+    return;
 }

@@ -12,6 +12,7 @@
 void
 tcp_relay_epoll(tcp_relay_config_t *config,
                 tcp_inbound_t *inbound,
-                tcp_outbound_t *outbound);
+                tcp_outbound_t *outbound,
+                size_t nthread);
 
 #endif

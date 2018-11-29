@@ -28,7 +28,7 @@ HOOK(connect, fd_t, (fd_t fd, const struct sockaddr *addr, socklen_t addrlen), {
 
     // proxy = target_id_new_ipv4((byte_t []) { 127, 0, 0, 1 }, 3133);
     target = target_id_new_ipv4((byte_t *)&ip, port);
-    sock = socks_tcp_socket_new(SOCKS_VERSION_ANY);
+    sock = socks_tcp_socket_new(SOCKS_VERSION_5);
 
     socks_tcp_socket_set_proxy(sock, target_proxy);
 

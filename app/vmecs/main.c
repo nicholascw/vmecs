@@ -398,7 +398,7 @@ int main(int argc, const char **argv)
     }
 
     // tcp_relay(relay_config, inbound, outbound);
-    tcp_relay_epoll(relay_config, inbound, outbound);
+    tcp_relay_epoll(relay_config, inbound, outbound, 4);
 
     tcp_inbound_free(inbound);
     tcp_outbound_free(outbound);
