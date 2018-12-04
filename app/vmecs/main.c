@@ -355,7 +355,7 @@ load_relay_config(toml_object_t *config)
 
 void sigpipe_handler(int sig)
 {
-    const char msg[] = "pipe broken\n";
+    const char msg[] = "broken pipe\n";
     fd_write(STDERR_FILENO, (byte_t *)msg, sizeof(msg) - 1);
 }
 

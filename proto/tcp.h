@@ -36,8 +36,8 @@ typedef fd_t (*tcp_socket_revent_t)(struct tcp_socket_t_tag *sock);
 
 typedef target_id_t *(*tcp_socket_target_t)(struct tcp_socket_t_tag *sock);
 
-typedef int (*tcp_socket_close_t)(struct tcp_socket_t_tag *sock);
-typedef void (*tcp_socket_free_t)(struct tcp_socket_t_tag *sock);
+typedef int (*tcp_socket_close_t)(struct tcp_socket_t_tag *sock); // NOTE: close is similar to shutdown(SHUT_WR)
+typedef void (*tcp_socket_free_t)(struct tcp_socket_t_tag *sock); // and free is similar to close
 
 // an abstract layer for tcp connection
 typedef struct tcp_socket_t_tag {

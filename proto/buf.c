@@ -189,14 +189,16 @@ vbuffer_drain(vbuffer_t *vbuf)
     mutex_unlock(vbuf->mut);
 }
 
-size_t
+ssize_t
 vbuffer_try_read(vbuffer_t *vbuf, byte_t *buf, size_t buf_size)
 {
-    size_t n_read;
+    ssize_t n_read;
 
     mutex_lock(vbuf->mut);
 
-    if (vbuf->w_idx) {
+    if (vbuf->eof) {
+        n_read = -1;
+    } else if (vbuf->w_idx) {
         n_read = buf_size > vbuf->w_idx ? vbuf->w_idx : buf_size;
 
         memcpy(buf, vbuf->buf, n_read);

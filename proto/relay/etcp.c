@@ -18,7 +18,7 @@ typedef struct etcp_relay_conn_t_tag {
 
     struct etcp_relay_conn_t_tag *pair;
 
-    // int nclosed;
+    int nclosed;
 } etcp_relay_conn_t;
 
 typedef struct {
@@ -42,7 +42,7 @@ etcp_relay_conn_new(fd_t in_fd, fd_t out_fd, tcp_socket_t *in, tcp_socket_t *out
 
     ret->pair = NULL;
 
-    // ret->nclosed = 0;
+    ret->nclosed = 0;
 
     return ret;
 }
@@ -66,8 +66,10 @@ etcp_remove_conn(epoll_t epfd, etcp_relay_conn_t *conn)
     fd_epoll_ctl(epfd, FD_EPOLL_DEL, conn->in_fd, NULL);
     fd_epoll_ctl(epfd, FD_EPOLL_DEL, conn->out_fd, NULL);
 
-    tcp_socket_close(conn->in_sock);
-    tcp_socket_close(conn->out_sock);
+    if (!conn->nclosed) {
+        tcp_socket_close(conn->in_sock);
+        tcp_socket_close(conn->out_sock);
+    } // else already closed
 
     tcp_socket_free(conn->in_sock);
     tcp_socket_free(conn->out_sock);
@@ -129,7 +131,7 @@ etcp_handle(epoll_t epfd, tcp_outbound_t *outbound, etcp_relay_conn_t *conn, siz
             etcp_relay_conn_link(conn1, conn2);
 
             event = (epoll_event_t) {
-                .events = FD_EPOLL_READ | FD_EPOLL_ET,
+                .events = FD_EPOLL_READ | FD_EPOLL_RDHUP | FD_EPOLL_ET,
                 .data = {
                     .ptr = conn1
                 }
@@ -138,7 +140,7 @@ etcp_handle(epoll_t epfd, tcp_outbound_t *outbound, etcp_relay_conn_t *conn, siz
             fd_epoll_ctl(epfd, FD_EPOLL_ADD, in_fd, &event);
 
             event = (epoll_event_t) {
-                .events = FD_EPOLL_READ | FD_EPOLL_ET,
+                .events = FD_EPOLL_READ | FD_EPOLL_RDHUP | FD_EPOLL_ET,
                 .data = {
                     .ptr = conn2
                 }
@@ -161,8 +163,31 @@ etcp_handle(epoll_t epfd, tcp_outbound_t *outbound, etcp_relay_conn_t *conn, siz
 
         free(buf);
 
-        if (res != -2) {
-            etcp_remove_conn(epfd, conn);
+        switch (res) {
+            case 0:
+                // read end cloesd writing
+                // shutdown write to out_sock
+
+                tcp_socket_close(conn->out_sock);
+
+                conn->nclosed++;
+                conn->pair->nclosed++;
+
+                if (conn->nclosed == 2) {
+                    TRACE("conn closed %p %p", (void *)conn, (void *)conn->pair);
+                    etcp_remove_conn(epfd, conn);
+                } else {
+                    TRACE("conn in sock write closed %p", (void *)conn);
+                }
+
+                break;
+
+            case -2: break; // EAGAIN
+
+            case -1:
+            default:
+                // res > 0, but write failed
+                etcp_remove_conn(epfd, conn);
         }
     }
 }

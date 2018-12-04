@@ -26,5 +26,7 @@ fd_epoll_create()
 #define FD_EPOLL_READ EPOLLIN
 #define FD_EPOLL_WRITE EPOLLOUT
 #define FD_EPOLL_ET EPOLLET
+#define FD_EPOLL_HUP EPOLLHUP
+#define FD_EPOLL_RDHUP EPOLLRDHUP
 
 #endif

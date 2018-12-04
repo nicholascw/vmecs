@@ -85,14 +85,18 @@ static int
 _native_tcp_socket_close(tcp_socket_t *_sock)
 {
     native_tcp_socket_t *sock = (native_tcp_socket_t *)_sock;
-    return close(sock->sock);
+    return socket_shutdown_write(sock->sock);
 }
 
 static void
 _native_tcp_socket_free(tcp_socket_t *_sock)
 {
     native_tcp_socket_t *sock = (native_tcp_socket_t *)_sock;
-    free(sock);
+
+    if (sock) {
+        close(sock->sock);
+        free(sock);
+    }
 }
 
 native_tcp_socket_t *

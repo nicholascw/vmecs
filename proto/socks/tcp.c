@@ -342,7 +342,7 @@ static int
 _socks_tcp_socket_close(tcp_socket_t *_sock)
 {
     socks_tcp_socket_t *sock = (socks_tcp_socket_t *)_sock;
-    return close(sock->sock);
+    return socket_shutdown_write(sock->sock);
 }
 
 static void
@@ -352,6 +352,11 @@ _socks_tcp_socket_free(tcp_socket_t *_sock)
 
     if (sock) {
         target_id_free(sock->addr.proxy);
+        
+        if (close(sock->sock)) {
+            perror("close");
+        }
+
         free(sock);
     }
 }

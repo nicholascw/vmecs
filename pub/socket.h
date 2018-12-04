@@ -16,6 +16,13 @@
 #include "pub/time.h"
 #include "pub/fd.h"
 
+// shutdown read
+INLINE int
+socket_shutdown_write(fd_t sock)
+{
+    return shutdown(sock, SHUT_WR);
+}
+
 INLINE int
 socket_set_block(fd_t fd, bool blocking)
 {

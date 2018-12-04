@@ -19,6 +19,11 @@ _vmess_tcp_socket_read_c(tcp_socket_t *_sock, byte_t *buf, size_t size, bool blo
 
     ssize_t ret = vbuffer_try_read(sock->read_buf, buf, size);
 
+    if (ret == -1) {
+        // buffer closed
+        return 0;
+    }
+
     if (!ret) {
         if (block) {
             res = rbuffer_read(sock->raw_buf, sock->sock, vmess_data_decoder,
@@ -35,6 +40,7 @@ _vmess_tcp_socket_read_c(tcp_socket_t *_sock, byte_t *buf, size_t size, bool blo
                 if (trunk.size == 0) {
                     // remote sent end signal
                     // no more read is needed
+                    vbuffer_close(sock->read_buf);
                     ret = 0;
                 } else {
                     if (trunk.size > size) {
@@ -128,6 +134,12 @@ _vmess_tcp_socket_free(tcp_socket_t *_sock)
 {
     vmess_tcp_socket_t *sock = (vmess_tcp_socket_t *)_sock;
 
+    vbuffer_close(sock->read_buf);
+
+    if (close(sock->sock)) {
+        perror("close");
+    }
+
     vbuffer_free(sock->read_buf);
     rbuffer_free(sock->raw_buf);
     vmess_config_free(sock->config);
@@ -145,13 +157,11 @@ _vmess_tcp_socket_close(tcp_socket_t *_sock)
     size_t size;
     const byte_t *trunk = vmess_serial_end(&size);
 
-    vbuffer_close(sock->read_buf);
-
     // write ending trunk
     fd_write(sock->sock, trunk, size);
-
-    if (close(sock->sock)) {
-        perror("close");
+    
+    if (socket_shutdown_write(sock->sock)) {
+        perror("shutdown");
     }
 
     return 0;
