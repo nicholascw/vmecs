@@ -353,8 +353,10 @@ _socks_tcp_socket_free(tcp_socket_t *_sock)
     if (sock) {
         target_id_free(sock->addr.proxy);
         
-        if (close(sock->sock)) {
-            perror("close");
+        if (sock->sock != -1) {
+            if (close(sock->sock)) {
+                perror("close");
+            }
         }
 
         free(sock);
@@ -412,6 +414,7 @@ fd_t
 socks_to_socket(socks_tcp_socket_t *sock)
 {
     fd_t fd = sock->sock;
+    sock->sock = -1;
     tcp_socket_free(sock);
     return fd;
 }

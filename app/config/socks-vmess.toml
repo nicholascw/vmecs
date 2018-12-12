@@ -5,6 +5,6 @@
     
 [outbound]
     proto = "vmess"
-    proxy = "127.0.0.1"
-    port = "3134"
+    proxy = "vm0"
+    port = "3133"
     pass = "123456"

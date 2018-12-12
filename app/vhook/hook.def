@@ -58,11 +58,13 @@ HOOK(connect, fd_t, (fd_t fd, const struct sockaddr *addr, socklen_t addrlen), {
     flags = fcntl(fd, F_GETFL, 0);
     fake_flags = fcntl(fake_fd, F_GETFL, 0);
 
+    // TRACE("%d %d", flags, fake_flags);
+
     if (flags == -1 || fake_flags == -1) {
         TRACE("unable to get fd flags");
         return -1;
     }
-
+    
     if (flags & O_NONBLOCK) {
         fcntl(fake_fd, F_SETFL, fake_flags | O_NONBLOCK);
     }
