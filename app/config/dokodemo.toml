@@ -1,0 +1,9 @@
+[inbound]
+    proto = "dokodemo"
+    local = "127.0.0.1"
+    port = "3134"
+
+[outbound]
+    proto = "dokodemo"
+    proxy = "127.0.0.1"
+    port = "3135"

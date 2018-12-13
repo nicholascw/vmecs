@@ -145,7 +145,12 @@ _tcp_relay_handler(void *arg)
     }
 
     target = tcp_socket_target(job->in_sock);
-    print_target("request", target);
+    
+    if (target) {
+        print_target("request", target);
+    } else {
+        fprintf(stderr, "request: NULL\n");
+    }
 
     while (!(job->out_sock = tcp_outbound_client(job->outbound, target))) {
         perror("connect");

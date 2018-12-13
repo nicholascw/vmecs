@@ -108,9 +108,14 @@ etcp_handle(epoll_t epfd, tcp_outbound_t *outbound, etcp_relay_conn_t *conn, siz
                 return;
             }
 
-            target = tcp_socket_target(new_in);
+            target = tcp_socket_target(new_in); // NOTE target could be NULL
             fprintf(stderr, "thread %ld: ", id);
-            print_target("request", target);
+
+            if (target) {
+                print_target("request", target);
+            } else {
+                fprintf(stderr, "request: NULL\n");
+            }
 
             if (!(new_out = tcp_outbound_client(outbound, target))) {
                 // failed to connect

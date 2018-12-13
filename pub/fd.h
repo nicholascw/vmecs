@@ -7,6 +7,8 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+#include "type.h"
+
 typedef int fd_t;
 
 // read/write with retry on EINTR or EAGAIN

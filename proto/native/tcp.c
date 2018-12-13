@@ -99,6 +99,12 @@ _native_tcp_socket_free(tcp_socket_t *_sock)
     }
 }
 
+static target_id_t *
+_native_tcp_socket_target(tcp_socket_t *_sock)
+{
+    return NULL;
+}
+
 native_tcp_socket_t *
 native_tcp_socket_new_fd(fd_t fd)
 {
@@ -116,7 +122,7 @@ native_tcp_socket_new_fd(fd_t fd)
     ret->revent_func = _native_tcp_socket_revent;
     ret->close_func = _native_tcp_socket_close;
     ret->free_func = _native_tcp_socket_free;
-    ret->target_func = NULL;
+    ret->target_func = _native_tcp_socket_target;
 
     ret->sock = fd;
 

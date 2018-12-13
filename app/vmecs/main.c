@@ -20,6 +20,9 @@
 #include "proto/socks/outbound.h"
 #include "proto/socks/tcp.h"
 
+#include "proto/dokodemo/inbound.h"
+#include "proto/dokodemo/outbound.h"
+
 #include "proto/native/outbound.h"
 
 #define HELP \
@@ -276,6 +279,36 @@ tcp_outbound_t *socks5_outbound_builder(toml_object_t *config)
     return (tcp_outbound_t *)outbound;
 }
 
+tcp_inbound_t *dokodemo_inbound_builder(toml_object_t *config)
+{
+    target_id_t *local;
+    dokodemo_tcp_inbound_t *inbound;
+    
+    local = load_inbound_param(config);
+    if (!local) return NULL;
+
+    inbound = dokodemo_tcp_inbound_new(local);
+
+    target_id_free(local);
+
+    return (tcp_inbound_t *)inbound;
+}
+
+tcp_outbound_t *dokodemo_outbound_builder(toml_object_t *config)
+{
+    target_id_t *proxy;
+    dokodemo_tcp_outbound_t *outbound;
+    
+    proxy = load_outbound_param(config);
+    if (!proxy) return NULL;
+
+    outbound = dokodemo_tcp_outbound_new(proxy);
+
+    target_id_free(proxy);
+
+    return (tcp_outbound_t *)outbound;
+}
+
 tcp_outbound_t *native_outbound_builder(toml_object_t *config)
 {
     return (tcp_outbound_t *)native_tcp_outbound_new();
@@ -290,6 +323,7 @@ struct {
     { "socks", socks_inbound_builder, NULL },
     { "socks4", socks_inbound_builder, socks4_outbound_builder },
     { "socks5", socks_inbound_builder, socks5_outbound_builder },
+    { "dokodemo", dokodemo_inbound_builder, dokodemo_outbound_builder },
     { "native", NULL, native_outbound_builder }
 };
 
